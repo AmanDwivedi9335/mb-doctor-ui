@@ -37,13 +37,7 @@ import type {
   ApiErrorBody,
 } from "@/types";
 
-/**
- * React-query hooks. Keys are namespaced under 'doctor'. Each queryFn calls the
- * api client exactly as production does; the X-Clinic-Id header is added by
- * the client, and switching clinic clears the cache (DoctorAuthContext).
- * List endpoints that key on a patient take a `mid` and stay disabled until one
- * is present, so selecting a patient drives the fetch.
- */
+/** UI query hooks backed entirely by local demo fixtures and in-memory edits. */
 
 export interface FeatureFlags {
   version: string;

@@ -56,7 +56,7 @@ export const session: Session = {
   suspendedAt: null,
   mobile: null,
   deletionScheduledFor: null,
-  plan: { code: "pro", name: "Pro", active: true, endsAt: "2026-09-30", isPro: true, enforced: true },
+  plan: { code: "pro", name: "Pro", active: true, endsAt: "2027-12-31", isPro: true, enforced: true },
   clinics: [{ id: "c1", name: "Mehta Medical Centre", role: "owner", memberCount: 3 }],
   practice: { name: "Mehta Medical Centre", address: null, phone: null, email: null },
 };
@@ -86,7 +86,7 @@ export const patients: Record<string, Patient> = {
     gender: "Male",
     dateOfBirth: "1991-02-03",
     allergies: [],
-    consentGranted: false,
+    consentGranted: true,
   },
 };
 

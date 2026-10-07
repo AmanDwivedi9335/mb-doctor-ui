@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { extraHandlers } from "./demo-extras";
+import { local as http, LocalResponse as HttpResponse } from "@/lib/local-data";
 import * as fx from "./fixtures";
 import { ageFrom } from "@/lib/dates";
 import type {
@@ -26,14 +27,14 @@ const A = "*/api/v1/auth";
 const SESSION_KEY = "doctor-mock-session";
 const hasSession = () => {
   try {
-    return sessionStorage.getItem(SESSION_KEY) === "1";
+    return sessionStorage.getItem(SESSION_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 };
 const setSession = (on: boolean) => {
   try {
-    on ? sessionStorage.setItem(SESSION_KEY, "1") : sessionStorage.removeItem(SESSION_KEY);
+    on ? sessionStorage.setItem(SESSION_KEY, "1") : sessionStorage.setItem(SESSION_KEY, "0");
   } catch {
     /* private mode: session simply will not persist across reload */
   }
@@ -48,7 +49,7 @@ const procedures: Procedure[] = [...fx.procedures];
 const followups: FollowUp[] = [...fx.followups];
 const walkIns: WalkIn[] = [...fx.walkIns];
 const vitals: Vital[] = [...fx.vitals];
-const reports: Report[] = [...fx.reports];
+const reports: Report[] = fx.reports;
 const summary = Object.fromEntries(
   Object.entries(fx.summary).map(([k, v]) => [k, [...v]])
 ) as Record<SummaryKind, SummaryRow[]>;
@@ -61,7 +62,7 @@ let clinic = { ...fx.clinic };
 let subscription = { ...fx.subscription };
 
 const denied = (mid: string) =>
-  fx.patients[mid] && !fx.patients[mid].consentGranted
+  false
     ? HttpResponse.json({ message: "Patient has not granted access to this doctor" }, { status: 403 })
     : null;
 const notFound = (mid: string) =>
@@ -75,6 +76,7 @@ function gate(url: URL): { mid: string } | HttpResponse<any> {
 }
 
 export const handlers = [
+  ...extraHandlers,
   // ---------------------------------------------------------------- auth
   http.post(`${B}/auth/login`, async ({ request }) => {
     const body = (await request.json()) as { email?: string; password?: string };
@@ -266,11 +268,11 @@ export const handlers = [
     return HttpResponse.json(clinic);
   }),
   http.post(`${B}/clinic/profile/logo`, () => {
-    clinic = { ...clinic, logoUrl: "mock://logo.png" };
+    clinic = { ...clinic, logoUrl: "/demo-clinic.svg" };
     return HttpResponse.json({ logoUrl: clinic.logoUrl });
   }),
   http.post(`${B}/clinic/profile/qr-code`, () => {
-    clinic = { ...clinic, qrUrl: "mock://qr.png" };
+    clinic = { ...clinic, qrUrl: "/demo-clinic.svg" };
     return HttpResponse.json({ qrUrl: clinic.qrUrl });
   }),
 
@@ -372,7 +374,7 @@ export const handlers = [
   }),
 
   // --------------------------------------------------------- notifications
-  http.get(`${B}/notifications`, () => HttpResponse.json({ notifications })),
+  http.get(`${B}/notifications`, () => HttpResponse.json({ notifications, unreadCount: notifications.filter((n) => !n.read).length })),
   http.patch(`${B}/notifications/:id/read`, ({ params }) => {
     const n = notifications.find((x) => x.id === params.id);
     if (n) n.read = true;
@@ -387,7 +389,7 @@ export const handlers = [
   http.get(`${B}/profile`, () => HttpResponse.json(fx.doctor)),
   http.put(`${B}/profile`, async ({ request }) => {
     const body = (await request.json()) as Partial<typeof fx.doctor>;
-    return HttpResponse.json({ ...fx.doctor, ...body });
+    Object.assign(fx.doctor, body); Object.assign(fx.session, body); return HttpResponse.json(fx.doctor);
   }),
 
   // ---------------------------------------------------------------- real-shape auth + session

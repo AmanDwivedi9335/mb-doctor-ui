@@ -1,3 +1,4 @@
+import { consentedMid, patients } from "@/mocks/fixtures";
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 const KEY = "doctor-portal:selected-patient-mid";
@@ -27,8 +28,8 @@ const read = (k: string) => {
 };
 
 export function SelectedPatientProvider({ children }: { children: ReactNode }) {
-  const [mid, setMid] = useState<string | null>(() => read(KEY));
-  const [name, setName] = useState<string | null>(() => read(NAME_KEY));
+  const [mid, setMid] = useState<string | null>(() => read(KEY) ?? consentedMid);
+  const [name, setName] = useState<string | null>(() => read(NAME_KEY) ?? patients[consentedMid].name);
 
   const select = useCallback((m: string, n?: string) => {
     setMid(m);
