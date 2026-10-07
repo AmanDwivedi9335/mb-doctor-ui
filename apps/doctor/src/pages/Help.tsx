@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const TIPS = [
-  { icon: Search, title: "Find a patient", body: "Use Search MID in the Consultation menu. Enter the patient's 13-character MID to open their record." },
+  { icon: Search, title: "Find a patient", body: "Use Home in the Consultation menu. Enter the patient's 13-character MID to open their record." },
   { icon: ClipboardList, title: "Record care", body: "Once a patient is open, add diagnoses, procedures, reports, and follow-ups from the tabs." },
   { icon: Receipt, title: "Run your clinic", body: "Manage appointments, billing, staff, and your subscription under Clinic Management." },
 ];

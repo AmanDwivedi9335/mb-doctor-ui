@@ -158,7 +158,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <GroupHeader icon={Stethoscope} label="Consultation" open={consultOpen} onToggle={() => setConsultOpen((o) => !o)} />
             {consultOpen && (
               <div className="mb-1 mt-0.5 flex flex-col gap-0.5">
-                <Row icon={Search} label="Search MID" to="/" active={pathname === "/"} onNavigate={onNavigate} indent />
+                <Row icon={Search} label="Home" to="/" active={pathname === "/"} onNavigate={onNavigate} indent />
                 <Row icon={UserPlus} label="Walk-in Rx" to="/walk-in" active={pathname === "/walk-in"} onNavigate={onNavigate} indent />
                 <Row icon={UserRound} label="Patient Summary" to={pt("summary")} active={tabActive("summary")} disabled={!mid} onNavigate={onNavigate} indent />
                 <Row icon={ClipboardList} label="Diagnosis" to={pt("diagnosis")} active={tabActive("diagnosis")} disabled={!mid} onNavigate={onNavigate} indent />

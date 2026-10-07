@@ -1,6 +1,6 @@
 /** Page title shown in the topbar, derived from the current path. */
 const TITLES: Record<string, string> = {
-  "/": "Search MID",
+  "/": "Home",
   "/dashboard": "Dashboard",
   "/walk-in": "Walk-in Rx",
   "/history": "History",
