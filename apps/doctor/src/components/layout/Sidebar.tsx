@@ -1,0 +1,244 @@
+import appPackage from "../../../package.json";
+import { usePortalLogo } from "@/hooks/use-portal-logo";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutGrid,
+  Stethoscope,
+  Search,
+  UserPlus,
+  UserRound,
+  ClipboardList,
+  Syringe,
+  FileText,
+  CalendarCheck,
+  HeartPulse,
+  Building2,
+  CalendarDays,
+  Receipt,
+  Settings as SettingsIcon,
+  BarChart3,
+  Users,
+  CreditCard,
+  HelpCircle,
+  LogOut,
+  ChevronDown,
+  type LucideIcon,
+} from "lucide-react";
+import { useSelectedPatient } from "@/contexts/SelectedPatientContext";
+import { Logo } from "@/components/Logo";
+import { useAuth } from "@/contexts/DoctorAuthContext";
+import { useFeatureFlags } from "@/hooks/use-api";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+/** One nav leaf. Link when it has a destination, muted div when disabled. */
+function Row({
+  icon: Icon,
+  label,
+  to,
+  active,
+  disabled,
+  onNavigate,
+  indent,
+}: {
+  icon?: LucideIcon;
+  label: string;
+  to?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onNavigate?: () => void;
+  indent?: boolean;
+}) {
+  const cls = cn(
+    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
+    indent ? (Icon ? "ml-6" : "pl-9") : "",
+    active
+      ? "bg-sidebar-accent font-semibold text-primary"
+      : disabled
+        ? "cursor-not-allowed text-sidebar-muted/40"
+        : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+  );
+  const inner = (
+    <>
+      {Icon && <Icon className="size-[17px] shrink-0" strokeWidth={2} />}
+      <span className="truncate">{label}</span>
+    </>
+  );
+  if (to && !disabled)
+    return (
+      <Link to={to} onClick={onNavigate} className={cls}>
+        {inner}
+      </Link>
+    );
+  return (
+    <div className={cls} aria-disabled={disabled}>
+      {inner}
+    </div>
+  );
+}
+
+/** Collapsible section header (Consultation / Clinic Management). */
+function GroupHeader({
+  icon: Icon,
+  label,
+  open,
+  onToggle,
+  pro,
+}: {
+  icon: LucideIcon;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  pro?: boolean;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-[13px] font-semibold text-primary hover:bg-secondary"
+    >
+      <Icon className="size-[17px] shrink-0" strokeWidth={2.2} />
+      <span className="flex-1 text-left">{label}</span>
+      {pro && (
+        <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950">
+          Pro
+        </span>
+      )}
+      <ChevronDown className={cn("size-4 text-sidebar-muted transition-transform", open && "rotate-180")} />
+    </button>
+  );
+}
+
+/**
+ * What a login sees (product rule 2026-09-14):
+ *   basic doctor   Consultation (Search MID is home, Dashboard last), Account, Help
+ *   pro doctor     + Clinic Management (appointments, billing, clinic settings, analytics)
+ *   front desk     Dashboard, Clinic Management (no consultation, no plan)
+ */
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { logo } = usePortalLogo();
+  const { pathname, search } = useLocation();
+  const { mid } = useSelectedPatient();
+  const { user, activeClinicId, logout } = useAuth();
+  const navigate = useNavigate();
+  const { data: flags } = useFeatureFlags();
+  const showHealthGraph = !!flags?.flags?.health_graph;
+  const tab = new URLSearchParams(search).get("tab") || "summary";
+
+  const isDesk = user?.role === "receptionist";
+  const isPro = !!user?.plan?.isPro;
+  const showConsult = !isDesk;
+  const showClinic = isDesk || isPro;
+  // A basic doctor invited into a clinic still gets their own queue there.
+  const memberQueue = !isDesk && !isPro && !!activeClinicId;
+
+  const inSettings = pathname.startsWith("/settings/clinic") || pathname.startsWith("/settings/doctors") || pathname.startsWith("/settings/staff");
+
+  const [consultOpen, setConsultOpen] = useState(true);
+  const [clinicOpen, setClinicOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(inSettings);
+
+  // Consultation leaves point at the selected patient's workspace tab.
+  const pt = (t: string) => (mid ? `/patients/${mid}?tab=${t}` : undefined);
+  const tabActive = (t: string) => !!mid && pathname === `/patients/${mid}` && tab === t;
+
+  return (
+    <aside className="portal-sidebar flex h-full w-[224px] flex-col bg-sidebar text-sidebar-foreground">
+      {/* Brand */}
+      <div className="border-b border-sidebar-accent px-5 py-6">
+        {logo ? <img src={logo} alt="Practice logo" className="mx-auto h-16 w-full object-contain" /> : <div className="flex h-16 items-center justify-center rounded-lg bg-secondary text-xs font-medium text-muted-foreground">Practice logo</div>}
+      </div>
+
+      <nav className="scroll-area flex-1 overflow-y-auto px-3 pb-2">
+        {/* The desk has no Consultation group, so its Dashboard (its home) stays up top. */}
+        {isDesk && <Row icon={LayoutGrid} label="Dashboard" to="/" active={pathname === "/"} onNavigate={onNavigate} />}
+
+        {showConsult && (
+          <>
+            <GroupHeader icon={Stethoscope} label="Consultation" open={consultOpen} onToggle={() => setConsultOpen((o) => !o)} />
+            {consultOpen && (
+              <div className="mb-1 mt-0.5 flex flex-col gap-0.5">
+                <Row icon={Search} label="Search MID" to="/" active={pathname === "/"} onNavigate={onNavigate} indent />
+                <Row icon={UserPlus} label="Walk-in Rx" to="/walk-in" active={pathname === "/walk-in"} onNavigate={onNavigate} indent />
+                <Row icon={UserRound} label="Patient Summary" to={pt("summary")} active={tabActive("summary")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={ClipboardList} label="Diagnosis" to={pt("diagnosis")} active={tabActive("diagnosis")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={Syringe} label="Procedure" to={pt("procedures")} active={tabActive("procedures")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={FileText} label="Report" to={pt("reports")} active={tabActive("reports")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={CalendarCheck} label="Follow-ups" to={pt("followups")} active={tabActive("followups")} disabled={!mid} onNavigate={onNavigate} indent />
+                {showHealthGraph && (
+                  <Row icon={HeartPulse} label="Health graph" to={pt("health")} active={tabActive("health")} disabled={!mid} onNavigate={onNavigate} indent />
+                )}
+                {memberQueue && (
+                  <Row icon={CalendarDays} label="My queue" to="/appointments" active={pathname === "/appointments"} onNavigate={onNavigate} indent />
+                )}
+                <Row icon={LayoutGrid} label="Dashboard" to="/dashboard" active={pathname === "/dashboard"} onNavigate={onNavigate} indent />
+              </div>
+            )}
+          </>
+        )}
+
+        {showClinic && (
+          <>
+            <GroupHeader icon={Building2} label="Clinic Management" open={clinicOpen} onToggle={() => setClinicOpen((o) => !o)} pro />
+            {clinicOpen && (
+              <div className="mb-1 mt-0.5 flex flex-col gap-0.5">
+                <Row icon={CalendarDays} label="Appointments" to="/appointments" active={pathname === "/appointments"} onNavigate={onNavigate} indent />
+                <Row icon={Receipt} label="Billing" to="/billing" active={pathname === "/billing"} onNavigate={onNavigate} indent />
+                <Row icon={Users} label="Patient analytics" to="/analytics/patients" active={pathname === "/analytics/patients"} onNavigate={onNavigate} indent />
+                <Row icon={BarChart3} label="Billing analytics" to="/analytics/billing" active={pathname === "/analytics/billing"} onNavigate={onNavigate} indent />
+
+                <button
+                  onClick={() => setSettingsOpen((o) => !o)}
+                  className={cn(
+                    "ml-6 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
+                    inSettings ? "font-medium text-primary" : "text-sidebar-muted hover:bg-secondary hover:text-sidebar-foreground"
+                  )}
+                >
+                  <SettingsIcon className="size-[17px] shrink-0" strokeWidth={2} />
+                  <span className="flex-1 text-left">Clinic settings</span>
+                  <ChevronDown className={cn("size-3.5 text-sidebar-muted transition-transform", settingsOpen && "rotate-180")} />
+                </button>
+                {settingsOpen && (
+                  <div className="flex flex-col gap-0.5">
+                    <Row label="Clinic's Profile" to="/settings/clinic" active={pathname === "/settings/clinic"} onNavigate={onNavigate} indent />
+                    <Row label="Doctors" to="/settings/doctors" active={pathname === "/settings/doctors"} onNavigate={onNavigate} indent />
+                    {!isDesk && <Row label="Front desk" to="/settings/staff" active={pathname === "/settings/staff"} onNavigate={onNavigate} indent />}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Account: reachable on every plan so a basic doctor can upgrade. */}
+        <div className="mt-2 flex flex-col gap-0.5">
+          {!isDesk && <Row icon={UserRound} label="Doctor's Profile" to="/profile" active={pathname === "/profile"} onNavigate={onNavigate} />}
+          {!isDesk && <Row icon={CreditCard} label="Subscription" to="/settings/subscription" active={pathname === "/settings/subscription"} onNavigate={onNavigate} />}
+          <Row icon={FileText} label="FAQ's" to="/settings/faqs" active={pathname === "/settings/faqs"} onNavigate={onNavigate} />
+        </div>
+      </nav>
+
+      {/* Help & Tutorial and Log out, pinned */}
+      <div className="flex flex-col gap-0.5 border-t border-sidebar-accent px-3 py-3">
+        <Row icon={HelpCircle} label="Help & Tutorial" to="/help" active={pathname === "/help"} onNavigate={onNavigate} />
+        {/* Solid red, full width: same as the patient app's sidebar. */}
+        <Button
+          size="sm"
+          variant="destructive"
+          className="mt-1 w-full"
+          onClick={async () => {
+            onNavigate?.();
+            await logout();
+            navigate("/login");
+          }}
+        >
+          <LogOut /> Log out
+        </Button>
+        <div className="mt-3 flex flex-col items-center gap-1.5">
+          <Logo className="h-5" />
+          <span className="text-[10px] text-muted-foreground">Version {appPackage.version}</span>
+        </div>
+      </div>
+    </aside>
+  );
+}

@@ -1,0 +1,19 @@
+# Netlify config for the doctor UI.
+# The build talks to the real backend at VITE_API_ORIGIN; the API's
+# CORS_ORIGINS must include this site's origin.
+
+[build]
+  command = "pnpm build"
+  publish = "apps/doctor/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  VITE_API_ORIGIN = "https://api.medibank.in"
+
+# SPA fallback: every route serves index.html so client-side routing works on
+# reload / deep links. (Also shipped as apps/doctor/public/_redirects for
+# drag-and-drop deploys.)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

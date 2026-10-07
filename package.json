@@ -1,0 +1,14 @@
+{
+  "name": "medibank-doctor-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.2.0",
+  "scripts": {
+    "dev": "pnpm --filter @myanodex/doctor dev",
+    "build": "pnpm --filter @myanodex/doctor build",
+    "preview": "pnpm --filter @myanodex/doctor preview",
+    "test": "pnpm --filter @myanodex/doctor test",
+    "typecheck": "pnpm --filter @myanodex/doctor exec tsc --noEmit -p tsconfig.app.json"
+  }
+}
