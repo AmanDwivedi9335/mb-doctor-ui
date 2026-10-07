@@ -155,7 +155,7 @@
     background-image: url("./assets/medibank-watermark.svg");
     background-repeat: repeat;
     background-size: 360px 220px;
-    opacity: 0.028;
+    opacity: 0.008;
   }
 }
 @media print { .portal-watermarked::after { display: none; } }
