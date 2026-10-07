@@ -172,7 +172,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         {/* Account: reachable on every plan so a basic doctor can upgrade. */}
         <div className="mt-2 flex flex-col gap-0.5">
-          {!isDesk && <Row icon={UserRound} label="Doctor's Profile" to="/profile" active={pathname === "/profile"} onNavigate={onNavigate} />}
           {!isDesk && <Row icon={CreditCard} label="Subscription" to="/settings/subscription" active={pathname === "/settings/subscription"} onNavigate={onNavigate} />}
           <Row icon={FileText} label="FAQ's" to="/settings/faqs" active={pathname === "/settings/faqs"} onNavigate={onNavigate} />
         </div>
