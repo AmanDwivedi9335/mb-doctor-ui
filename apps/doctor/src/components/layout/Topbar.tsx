@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Menu, Bell, History, ChevronDown, LogOut, Settings, UserRound, Building2, Sun } from "lucide-react";
+import { Menu, Bell, History, ChevronDown, LogOut, Settings, UserRound, Building2, Sun, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
 import { useNotifications } from "@/hooks/use-api";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -101,6 +101,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 <UserRound /> Profile
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onSelect={() => navigate("/help")}>
+              <HelpCircle /> Help &amp; Tutorial
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => navigate("/settings/account")}>
               <Settings /> Settings
             </DropdownMenuItem>

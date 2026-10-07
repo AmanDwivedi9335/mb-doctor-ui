@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { useSummary, useCreateSummaryRow } from "@/hooks/use-api";
 import { SUMMARY_TABS, filterSummaryRows, type SummaryTab } from "@/lib/summary";
 import { useForm } from "@/hooks/use-form";
+import { TabFrame } from "@/components/clinical/TabFrame";
 import { DataTable, type Column } from "@/components/clinical/DataTable";
 import { FilterBar } from "@/components/clinical/FilterBar";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,9 @@ export function SummaryPanel({ mid }: { mid: string }) {
   const sub: SummaryKind = KINDS.includes(raw as SummaryKind) ? (raw as SummaryKind) : "conditions";
 
   return (
-    <Tabs value={sub} onValueChange={(v) => setParams({ tab: "summary", sub: v }, { replace: true })}>
-      <TabsList className="flex-wrap">
+    <TabFrame value={sub}>
+    <Tabs className="search-appointment-panel summary-toggle-panel" value={sub} onValueChange={(v) => setParams({ tab: "summary", sub: v }, { replace: true })}>
+      <TabsList className="search-appointment-tabs summary-toggle-tabs" aria-label="Patient summary categories">
         {SUMMARY_TABS.map((t) => (
           <TabsTrigger key={t.kind} value={t.kind}>
             {t.label}
@@ -43,6 +45,7 @@ export function SummaryPanel({ mid }: { mid: string }) {
         </TabsContent>
       ))}
     </Tabs>
+    </TabFrame>
   );
 }
 
