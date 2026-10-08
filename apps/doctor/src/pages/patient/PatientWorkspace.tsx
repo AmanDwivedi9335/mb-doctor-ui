@@ -123,7 +123,7 @@ export function PatientWorkspace() {
         <ArrowLeft className="size-4" /> Find another patient
       </button>
 
-      <PatientHeader patient={patient} />
+      <PatientHeader patient={patient} summary={tab === "summary"} />
 
       <h2 className="text-base font-semibold">{TITLES[tab]}</h2>
       {panel}
