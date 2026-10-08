@@ -33,25 +33,6 @@ export function VitalsPanel({ mid }: { mid: string }) {
 
   const rows = data?.vitals ?? [];
 
-  // Pick a metric to chart; default to the first present type.
-  const presentTypes = useMemo(() => TYPES.filter((t) => rows.some((r) => r.type === t.value)), [rows]);
-  const [metric, setMetric] = useState<Vital["type"] | null>(null);
-  const activeMetric = metric ?? presentTypes[0]?.value ?? null;
-
-  const chartData = useMemo(() => {
-    if (!activeMetric) return [];
-    return rows
-      .filter((r) => r.type === activeMetric)
-      .slice()
-      .sort((a, b) => a.recordDate.localeCompare(b.recordDate))
-      .map((r) => ({
-        date: format(new Date(r.recordDate), "d MMM"),
-        value: typeof r.value === "number" ? r.value : undefined,
-        systolic: typeof r.value === "object" ? r.value.systolic : undefined,
-        diastolic: typeof r.value === "object" ? r.value.diastolic : undefined,
-      }));
-  }, [rows, activeMetric]);
-
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const meta = TYPES.find((t) => t.value === f.type)!;
@@ -92,45 +73,10 @@ export function VitalsPanel({ mid }: { mid: string }) {
         </Button>
       </div>
 
-      {activeMetric && chartData.length > 0 && (
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle>Trend</CardTitle>
-            <div className="flex flex-wrap gap-1">
-              {presentTypes.map((t) => (
-                <button
-                  key={t.value}
-                  onClick={() => setMetric(t.value)}
-                  className={`rounded-md px-2 py-1 text-[12px] font-medium ${activeMetric === t.value ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-secondary"}`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={44} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
-                  {activeMetric === "blood_pressure" ? (
-                    <>
-                      <Line type="monotone" dataKey="systolic" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="diastolic" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 3 }} />
-                    </>
-                  ) : (
-                    <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+      <div className="grid gap-4 lg:grid-cols-2">
+        <VitalTrend key={`${mid}-first`} rows={rows} defaultMetric="blood_pressure" title="Measure 1" />
+        <VitalTrend key={`${mid}-second`} rows={rows} defaultMetric="blood_glucose" title="Measure 2" />
+      </div>
       <DataTable columns={columns} rows={rows} getRowKey={(v) => v.id} empty="No vitals recorded." />
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -164,5 +110,59 @@ export function VitalsPanel({ mid }: { mid: string }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function VitalTrend({ rows, defaultMetric, title }: { rows: Vital[]; defaultMetric: Vital["type"]; title: string }) {
+  const [metric, setMetric] = useState(defaultMetric);
+  const meta = TYPES.find((t) => t.value === metric)!;
+  const readings = useMemo(() => rows.filter((r) => r.type === metric).slice().sort((a, b) => a.recordDate.localeCompare(b.recordDate)), [rows, metric]);
+  const chartData = readings.map((r) => ({
+    date: r.recordDate,
+    value: typeof r.value === "number" ? r.value : undefined,
+    systolic: typeof r.value === "object" ? r.value.systolic : undefined,
+    diastolic: typeof r.value === "object" ? r.value.diastolic : undefined,
+  }));
+  const latest = readings[readings.length - 1];
+
+  return (
+    <Card className="min-w-0">
+      <CardHeader className="space-y-3">
+        <CardTitle>{title}</CardTitle>
+        <SelectField label="Measure" value={metric} onValueChange={(v) => setMetric(v as Vital["type"])} options={TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+        {latest && (
+          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            <span className="font-semibold tabular-nums">{fmtValue(latest)}</span>
+            <span className="text-muted-foreground">Recorded: {format(new Date(latest.recordDate), "d MMM yyyy")}</span>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent>
+        {readings.length === 0 ? (
+          <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">No {meta.label.toLowerCase()} readings recorded.</div>
+        ) : (
+          <div className="h-56" role="img" aria-label={`${meta.label} readings by recorded date, in ${meta.unit}`}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={(d) => format(new Date(d), "d MMM yyyy")} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" minTickGap={24} />
+                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={44} />
+                <Tooltip labelFormatter={(d) => format(new Date(String(d)), "d MMM yyyy")} formatter={(value, name) => [`${value} ${meta.unit}`, name]} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
+                {metric === "blood_pressure" ? (
+                  <>
+                    <Line name="Systolic" type="monotone" dataKey="systolic" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line name="Diastolic" type="monotone" dataKey="diastolic" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 3 }} />
+                  </>
+                ) : (
+                  <Line name={meta.label} type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">{meta.label} ({meta.unit}) · Recorded date</p>
+        {metric === "blood_pressure" && latest && <p className="mt-1 text-xs text-muted-foreground">Purple: systolic · Gray: diastolic</p>}
+      </CardContent>
+    </Card>
   );
 }
