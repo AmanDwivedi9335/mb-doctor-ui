@@ -265,6 +265,13 @@ export interface ApiErrorBody {
 
 // --- Clinic management ---
 
+export interface ClinicOperatingDay {
+  day: "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+  opens: string;
+  closes: string;
+  closed: boolean;
+}
+
 export interface Clinic {
   id: string;
   name: string;
@@ -276,6 +283,7 @@ export interface Clinic {
   upiId?: string;
   operatingHoursStart: string;
   operatingHoursEnd: string;
+  operatingHours?: ClinicOperatingDay[];
   logoUrl?: string | null;
   qrUrl?: string | null;
 }
