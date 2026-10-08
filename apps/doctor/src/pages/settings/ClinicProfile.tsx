@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Upload, QrCode } from "lucide-react";
+import { Plus, QrCode } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
 import { useClinicProfile, useUpdateClinicProfile, useCreateClinic, useUploadClinicImage, useClinicQr } from "@/hooks/use-api";
 import { ApiError } from "@myanodex/shared/api-client";
@@ -10,6 +10,7 @@ import { TextField } from "@/components/form/FormKit";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
+import { ClinicLogo } from "@/components/clinical/ClinicLogo";
 
 const EMPTY = { name: "", address: "", phone: "", website: "", receptionMobile: "", upiId: "", operatingHoursStart: "09:00", operatingHoursEnd: "20:00" };
 
@@ -120,7 +121,6 @@ function EditClinic() {
   const { data, isLoading, error } = useClinicProfile();
   const qr = useClinicQr(activeClinicId, !!data?.qrUrl);
   const update = useUpdateClinicProfile();
-  const uploadLogo = useUploadClinicImage("logo");
   const uploadQr = useUploadClinicImage("qr-code");
   const { f, seed, setF, dirty } = useForm(EMPTY);
 
@@ -152,7 +152,7 @@ function EditClinic() {
     }
   }
 
-  const pick = (m: typeof uploadLogo) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const pick = (m: typeof uploadQr) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const form = new FormData();
@@ -205,10 +205,7 @@ function EditClinic() {
           <CardTitle>Branding and payment</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-            <span className="flex items-center gap-1.5"><Upload className="size-4" /> Clinic logo {data.logoUrl && <span className="font-normal text-muted-foreground">(uploaded)</span>}</span>
-            <input type="file" accept=".png,.jpg,.jpeg,.webp" className="text-[12px]" disabled={uploadLogo.isPending} onChange={pick(uploadLogo)} />
-          </label>
+          <ClinicLogo />
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             <span className="flex items-center gap-1.5"><QrCode className="size-4" /> Payment QR</span>
             {qr ? (

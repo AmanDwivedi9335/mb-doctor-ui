@@ -108,7 +108,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="portal-sidebar flex h-full w-[224px] flex-col bg-sidebar text-sidebar-foreground">
       {/* Brand */}
       <div className="border-b border-sidebar-accent px-5 py-6">
-        {logo ? <img src={logo} alt="Practice logo" className="mx-auto h-16 w-full object-contain" /> : <div className="flex h-16 items-center justify-center rounded-lg bg-secondary text-xs font-medium text-muted-foreground">Practice logo</div>}
+        {logo ? <img src={logo} alt="Clinic logo" className="mx-auto h-16 w-full object-contain" /> : <div className="flex h-16 items-center justify-center rounded-lg bg-secondary text-xs font-medium text-muted-foreground">Clinic logo</div>}
       </div>
 
       <nav className="scroll-area flex-1 overflow-y-auto px-3 pb-2">

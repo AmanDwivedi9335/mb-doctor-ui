@@ -23,8 +23,8 @@ export function doctorDetails(data?: Partial<DoctorUser>): DoctorDetails {
   };
 }
 
-export function DoctorDetailsFields({ value, onChange, emailDisabled, registrationRequired = false }: {
-  value: DoctorDetails; onChange: (value: DoctorDetails) => void; emailDisabled?: boolean; registrationRequired?: boolean;
+export function DoctorDetailsFields({ value, onChange, emailDisabled, registrationRequired = false, showAdminPortalRequest = true }: {
+  value: DoctorDetails; onChange: (value: DoctorDetails) => void; emailDisabled?: boolean; registrationRequired?: boolean; showAdminPortalRequest?: boolean;
 }) {
   const photo = useRef<HTMLInputElement>(null);
   const set = <K extends keyof DoctorDetails>(key: K, next: DoctorDetails[K]) => onChange({ ...value, [key]: next });
@@ -87,7 +87,7 @@ export function DoctorDetailsFields({ value, onChange, emailDisabled, registrati
         </div>)}
         <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => set("education", [...value.education, blankEducation()])}><Plus />Add qualification</Button>
       </section>
-      <label className="flex items-center gap-2 border-t pt-4 text-sm"><input type="checkbox" checked={value.adminPortalRequested} onChange={(e) => set("adminPortalRequested", e.target.checked)} />Request access to Admin Portal</label>
+      {showAdminPortalRequest && <label className="flex items-center gap-2 border-t pt-4 text-sm"><input type="checkbox" checked={value.adminPortalRequested} onChange={(e) => set("adminPortalRequested", e.target.checked)} />Request access to Admin Portal</label>}
     </div>
   );
 }
