@@ -33,7 +33,7 @@ import { ClinicProfile } from "@/pages/settings/ClinicProfile";
 import { Doctors } from "@/pages/settings/Doctors";
 import { Staff } from "@/pages/settings/Staff";
 import { Subscription } from "@/pages/settings/Subscription";
-import { Faqs } from "@/pages/settings/Faqs";
+import { ContactUs } from "@/pages/settings/ContactUs";
 
 /** Home: a doctor lands on Search MID; the front desk has no consultation, so it lands on the dashboard. */
 function Home() {
@@ -89,7 +89,8 @@ export default function App() {
                 <Route path="doctors" element={<Doctors />} />
                 <Route path="staff" element={<Staff />} />
                 <Route path="subscription" element={<Subscription />} />
-                <Route path="faqs" element={<Faqs />} />
+                <Route path="contact" element={<ContactUs />} />
+                <Route path="faqs" element={<Navigate to="/help" replace />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Route>

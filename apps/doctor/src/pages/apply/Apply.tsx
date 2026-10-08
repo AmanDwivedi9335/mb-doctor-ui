@@ -6,6 +6,7 @@ import { ApiError } from "@myanodex/shared/api-client";
 import { useAuth, type LoginResponse } from "@/contexts/DoctorAuthContext";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/form/FormKit";
+import { DoctorDetailsFields, doctorDetails } from "@/components/form/DoctorDetailsFields";
 import { toast } from "@/components/ui/sonner";
 
 /**
@@ -19,8 +20,8 @@ export function Apply() {
   const [step, setStep] = useState<"email" | "details">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [details, setDetails] = useState(doctorDetails());
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,12 +51,15 @@ export function Apply() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!termsAccepted) return setError("Please accept the Terms & Conditions and Privacy Policy.");
+    if (!details.registrationIds.some((id) => id.trim())) return setError("Add at least one license / registration ID.");
     run(async () => {
       const res = await authApi.post<LoginResponse>("/auth/apply", {
+        ...details,
         email: email.trim(),
         code: code.trim(),
-        name: name.trim(),
-        mobile: mobile.trim(),
+        name: details.name.trim(),
+        mobile: details.mobile.trim(),
         username: username.trim().toLowerCase(),
         password,
       });
@@ -66,7 +70,7 @@ export function Apply() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-2xl">
         <div className="mb-6">
           <Logo className="h-9" suffix="for Doctors" />
         </div>
@@ -88,8 +92,7 @@ export function Apply() {
         {step === "details" && (
           <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
             <TextField label="Verification code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code from your email" required />
-            <TextField label="Full name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Dr Anand Mehta" required />
-            <TextField label="Mobile" inputMode="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="10-digit mobile" required />
+            <DoctorDetailsFields value={{ ...details, email }} onChange={setDetails} emailDisabled registrationRequired />
             <TextField
               label="Username"
               hint="4 to 32 characters: letters, numbers, dots or underscores. Clinics invite you by this."
@@ -108,6 +111,7 @@ export function Apply() {
               required
             />
             {error && <p className="text-[13px] text-destructive">{error}</p>}
+            <label className="flex items-start gap-2 text-xs text-muted-foreground"><input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />I agree to the Terms &amp; Conditions and Privacy Policy.</label>
             <Button type="submit" disabled={busy}>{busy ? "Creating..." : "Create account"}</Button>
             <button type="button" onClick={() => setStep("email")} className="text-[13px] text-muted-foreground hover:underline">
               Use a different email

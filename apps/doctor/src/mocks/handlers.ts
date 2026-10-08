@@ -265,6 +265,8 @@ export const handlers = [
   http.put(`${B}/clinic/profile`, async ({ request }) => {
     const body = (await request.json()) as Partial<typeof clinic>;
     clinic = { ...clinic, ...body };
+    const summary = fx.session.clinics.find((entry) => entry.id === clinic.id);
+    if (summary) summary.name = clinic.name;
     return HttpResponse.json(clinic);
   }),
   http.post(`${B}/clinic/profile/logo`, () => {
@@ -427,8 +429,10 @@ export const handlers = [
   // ---------------------------------------------------------------- clinics, invites, front desk
   http.get(`${B}/clinics`, () => HttpResponse.json({ clinics: fx.session.clinics })),
   http.post(`${B}/clinics`, async ({ request }) => {
-    const body = (await request.json()) as { name: string };
-    return HttpResponse.json({ ...clinic, id: uid("clinic"), name: body.name }, { status: 201 });
+    const body = (await request.json()) as { name: string; address?: string; phone?: string };
+    clinic = { ...fx.clinic, ...body, id: uid("clinic") };
+    fx.session.clinics.push({ id: clinic.id, name: clinic.name, role: "owner", memberCount: 1 });
+    return HttpResponse.json(clinic, { status: 201 });
   }),
   http.post(`${B}/clinics/:id/invites`, ({ params }) => HttpResponse.json({ clinicId: params.id, doctorId: uid("dr"), status: "pending" }, { status: 201 })),
   http.get(`${B}/me/invites`, () => HttpResponse.json({ invites: [] })),

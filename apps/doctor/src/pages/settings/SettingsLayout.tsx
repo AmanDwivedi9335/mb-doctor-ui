@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Tabs by login: everyone gets Account & security; a basic doctor then only
- * Subscription and FAQs (Clinic Management is Pro); a front desk sees the
+ * Subscription and Contact us (Clinic Management is Pro); a front desk sees the
  * clinic tabs but not the plan.
  */
 export function SettingsLayout() {
@@ -17,7 +17,7 @@ export function SettingsLayout() {
     ...(clinicTabs ? [{ to: "/settings/clinic", label: "Clinic" }, { to: "/settings/doctors", label: "Doctors" }] : []),
     ...(clinicTabs && !isDesk ? [{ to: "/settings/staff", label: "Front desk" }] : []),
     ...(!isDesk ? [{ to: "/settings/subscription", label: "Subscription" }] : []),
-    { to: "/settings/faqs", label: "FAQs" },
+    { to: "/settings/contact", label: "Contact us" },
   ];
 
   return (

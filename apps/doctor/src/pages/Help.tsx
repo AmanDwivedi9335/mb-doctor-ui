@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { Search, ClipboardList, Receipt, LifeBuoy, ArrowRight } from "lucide-react";
+import { Search, ClipboardList, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Faqs } from "@/pages/settings/Faqs";
 
 const TIPS = [
   { icon: Search, title: "Find a patient", body: "Use Home in the Consultation menu. Enter the patient's 13-character MID to open their record." },
   { icon: ClipboardList, title: "Record care", body: "Once a patient is open, add diagnoses, procedures, reports, and follow-ups from the tabs." },
-  { icon: Receipt, title: "Run your clinic", body: "Manage appointments, billing, staff, and your subscription under Clinic Management." },
+  { icon: Receipt, title: "Run your clinic", body: "Manage appointments, billing, and staff under Clinic Management. Manage your subscription in Settings." },
 ];
 
 export function Help() {
@@ -33,19 +33,11 @@ export function Help() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Need more?</CardTitle>
+          <CardTitle>Frequently asked questions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2 sm:flex-row">
-          <Button asChild variant="outline">
-            <Link to="/settings/faqs">
-              Read FAQs <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/support">
-              <LifeBuoy className="size-4" /> Contact support
-            </Link>
-          </Button>
+        <CardContent>
+          <Faqs />
+          <p className="mt-4 text-sm text-muted-foreground">Need more help? <Link to="/settings/contact" className="font-medium text-primary hover:underline">Contact us</Link>.</p>
         </CardContent>
       </Card>
     </div>

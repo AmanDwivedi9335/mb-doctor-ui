@@ -17,7 +17,7 @@ const TITLES: Record<string, string> = {
   "/settings/account": "Account & security",
   "/settings/security-questions": "Security questions",
   "/settings/subscription": "Subscription",
-  "/settings/faqs": "FAQ's",
+  "/settings/contact": "Contact us",
   "/settings/doctors": "Doctors",
   "/settings/staff": "Front desk",
   "/payment": "Payment",

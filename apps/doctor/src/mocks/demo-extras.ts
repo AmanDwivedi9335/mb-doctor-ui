@@ -33,7 +33,15 @@ export const extraHandlers = [
   http.post(`${A}/recover/send-code`, () => R.json({ devOtp: "123456" })),
   http.post(`${A}/recover/confirm`, () => R.json({ message: "Demo account recovered" })),
   http.post(`${A}/apply/send-code`, () => R.json({ message: "Demo code ready", devOtp: "123456" })),
-  http.post(`${A}/apply`, () => R.json({ accessToken: "demo-token", refreshToken: "demo-session", user: fx.session })),
+  http.post(`${A}/apply`, async ({ request }) => {
+    const body = await request.json();
+    const { password: _password, code: _code, ...details } = body;
+    Object.assign(fx.doctor, details);
+    Object.assign(fx.session, { name: details.name, email: details.email, mobile: details.mobile, username: details.username, avatarUrl: details.avatarUrl, specialization: details.specialization });
+    sessionStorage.setItem("doctor-mock-session", "1");
+    return R.json({ accessToken: "demo-token", refreshToken: "demo-session", user: fx.session });
+  }),
+  http.get(`${A}/onboarding`, () => R.json({ ...fx.doctor, qualification: fx.doctor.education?.map((entry) => entry.qualification).join(", ") ?? "", registrationNo: fx.doctor.registrationIds?.join(", ") ?? "", documents: { degreeCertificate: false, registrationCertificate: false, govIdProof: false }, reviewStatus: fx.session.reviewStatus, reviewNote: fx.session.reviewNote })),
   http.patch(`${A}/onboarding`, async ({ request }) => { Object.assign(fx.session, await request.json()); return R.json(fx.session); }),
   http.post(`${A}/onboarding/documents`, () => R.json({ uploaded: true })),
   http.post(`${A}/apply/submit`, () => R.json({ submitted: true })),

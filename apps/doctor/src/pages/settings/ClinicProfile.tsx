@@ -25,7 +25,7 @@ export function ClinicProfile() {
     return owned.length === 0 ? (
       <Card>
         <CardHeader>
-          <CardTitle>Create your first clinic</CardTitle>
+          <CardTitle>Set your clinic name</CardTitle>
           <p className="text-[13px] text-muted-foreground">
             A clinic gets its own appointments, invoices and statistics. Invite other doctors to it and give your reception
             a front desk login.
@@ -114,7 +114,7 @@ function CreateClinicForm({ onCreated, inDialog }: { onCreated: (id: string) => 
 }
 
 function EditClinic() {
-  const { user, activeClinicId } = useAuth();
+  const { user, activeClinicId, refreshSession } = useAuth();
   // Payment details (QR, UPI ID) are the owning doctor's alone, never the desk's.
   const isOwner = user?.role === "doctor" && user.clinics.find((c) => c.id === activeClinicId)?.role === "owner";
   const { data, isLoading, error } = useClinicProfile();
@@ -144,6 +144,7 @@ function EditClinic() {
     if (!f.name.trim()) return toast.error("Clinic name is required.");
     try {
       await update.mutateAsync(isOwner ? f : { ...f, upiId: undefined });
+      await refreshSession();
       toast.success("Clinic profile saved.");
       seed({ ...f });
     } catch (err) {

@@ -61,6 +61,14 @@ export interface Session {
 }
 
 export interface DoctorUser {
+  preferredName?: string;
+  dateOfBirth?: string;
+  mobile?: string;
+  emergencyMobile?: string;
+  registrationNo?: string;
+  registrationIds?: string[];
+  education?: { qualification: string; college: string; city: string; state: string; country: string }[];
+  adminPortalRequested?: boolean;
   id: string;
   name: string;
   email: string;
