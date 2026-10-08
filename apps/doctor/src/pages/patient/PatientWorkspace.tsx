@@ -18,11 +18,11 @@ import type { ApiErrorBody } from "@/types";
 
 const TITLES: Record<string, string> = {
   summary: "Patient Summary",
-  diagnosis: "Diagnosis",
+  diagnosis: "Consultations",
   procedures: "Procedure",
   reports: "Report",
   health: "Health graph",
-  followups: "Follow-ups",
+  followups: "Patient history",
 };
 
 /** One patient's workspace. The sidebar's Consultation rows pick the section via

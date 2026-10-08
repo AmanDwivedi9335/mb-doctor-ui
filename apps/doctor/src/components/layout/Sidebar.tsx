@@ -96,7 +96,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const inSettings = pathname.startsWith("/settings/clinic") || pathname.startsWith("/settings/doctors") || pathname.startsWith("/settings/staff");
 
-  const clinicRoute = inSettings || pathname === "/billing" || pathname.startsWith("/analytics/") || (showClinic && pathname === "/appointments");
+  const clinicRoute = inSettings || pathname === "/dashboard" || pathname === "/billing" || pathname.startsWith("/analytics/") || (showClinic && pathname === "/appointments");
   const [mode, setMode] = useState<"consultation" | "clinic">(clinicRoute ? "clinic" : "consultation");
   const selectedMode = showConsult && showClinic ? mode : showClinic ? "clinic" : "consultation";
   const [settingsOpen, setSettingsOpen] = useState(inSettings);
@@ -128,17 +128,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <Row icon={Search} label="Home" to="/" active={pathname === "/"} onNavigate={onNavigate} indent />
                 <Row icon={UserPlus} label="Walk-in Rx" to="/walk-in" active={pathname === "/walk-in"} onNavigate={onNavigate} indent />
                 <Row icon={UserRound} label="Patient Summary" to={pt("summary")} active={tabActive("summary")} disabled={!mid} onNavigate={onNavigate} indent />
-                <Row icon={ClipboardList} label="Diagnosis" to={pt("diagnosis")} active={tabActive("diagnosis")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={ClipboardList} label="Consultations" to={pt("diagnosis")} active={tabActive("diagnosis")} disabled={!mid} onNavigate={onNavigate} indent />
                 <Row icon={Syringe} label="Procedure" to={pt("procedures")} active={tabActive("procedures")} disabled={!mid} onNavigate={onNavigate} indent />
                 <Row icon={FileText} label="Report" to={pt("reports")} active={tabActive("reports")} disabled={!mid} onNavigate={onNavigate} indent />
-                <Row icon={CalendarCheck} label="Follow-ups" to={pt("followups")} active={tabActive("followups")} disabled={!mid} onNavigate={onNavigate} indent />
+                <Row icon={CalendarCheck} label="Patient history" to={pt("followups")} active={tabActive("followups")} disabled={!mid} onNavigate={onNavigate} indent />
                 {showHealthGraph && (
                   <Row icon={HeartPulse} label="Health graph" to={pt("health")} active={tabActive("health")} disabled={!mid} onNavigate={onNavigate} indent />
                 )}
                 {memberQueue && (
                   <Row icon={CalendarDays} label="My queue" to="/appointments" active={pathname === "/appointments"} onNavigate={onNavigate} indent />
                 )}
-                <Row icon={LayoutGrid} label="Dashboard" to="/dashboard" active={pathname === "/dashboard"} onNavigate={onNavigate} indent />
           </div>
         )}
 
@@ -146,6 +145,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="mb-1 mt-0.5 flex flex-col gap-0.5">
                 <Row icon={CalendarDays} label="Appointments" to="/appointments" active={pathname === "/appointments"} onNavigate={onNavigate} indent />
                 <Row icon={Receipt} label="Billing" to="/billing" active={pathname === "/billing"} onNavigate={onNavigate} indent />
+                <Row icon={LayoutGrid} label="Dashboard" to="/dashboard" active={pathname === "/dashboard"} onNavigate={onNavigate} indent />
                 <Row icon={Users} label="Patient analytics" to="/analytics/patients" active={pathname === "/analytics/patients"} onNavigate={onNavigate} indent />
                 <Row icon={BarChart3} label="Billing analytics" to="/analytics/billing" active={pathname === "/analytics/billing"} onNavigate={onNavigate} indent />
 
