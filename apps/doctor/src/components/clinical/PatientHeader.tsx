@@ -33,8 +33,8 @@ export function PatientHeader({ patient }: { patient: Patient }) {
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <Avatar className="size-11">
+      <div className="flex items-center gap-3">
+        <Avatar className="size-11 shrink-0">
           <AvatarFallback>{initials(patient.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
@@ -44,8 +44,8 @@ export function PatientHeader({ patient }: { patient: Patient }) {
               {patient.mid}
             </span>
             {patient.consentGranted && <Badge variant="success">Consent active</Badge>}
+            <span className="text-[13px] text-muted-foreground">{facts.join(" · ")}</span>
           </div>
-          <div className="mt-1 text-[13px] text-muted-foreground">{facts.join(" · ")}</div>
         </div>
       </div>
 
