@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/DoctorAuthContext";
 import { cn } from "@/lib/utils";
 
@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
  */
 export function SettingsLayout() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const isDesk = user?.role === "receptionist";
-  const clinicTabs = isDesk || !!user?.plan?.isPro;
+  const clinicTabs = pathname.replace(/\/$/, "") !== "/settings/clinic" && (isDesk || !!user?.plan?.isPro);
 
   const tabs = [
     { to: "/settings/account", label: "Account & security" },
