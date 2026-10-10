@@ -73,6 +73,7 @@ export function DiagnosisForm({
   cancel,
   summaryOption = true,
   autoFocus,
+  initialValues,
 }: {
   onSubmit: (v: DiagnosisFormValues) => void | Promise<void>;
   pending: boolean;
@@ -80,8 +81,9 @@ export function DiagnosisForm({
   cancel?: ReactNode;
   summaryOption?: boolean;
   autoFocus?: boolean;
+  initialValues?: Partial<DiagnosisFormValues>;
 }) {
-  const { f, setF } = useForm(blankDiagnosis());
+  const { f, setF } = useForm({ ...blankDiagnosis(), ...initialValues });
   const [sub, setSub] = useState<"meds" | "tests" | null>(null);
   const setVital = (k: keyof DiagnosisVitals, v: string) => setF("vitals", { ...f.vitals, [k]: v });
 

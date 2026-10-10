@@ -5,7 +5,7 @@ const B = "/api/v1/doctor";
 const A = "/api/v1/auth";
 const id = () => `demo-${crypto.randomUUID()}`;
 const today = () => new Date().toLocaleDateString("sv-SE");
-const appointments: Appointment[] = fx.appointments.map((a, i) => ({ ...a, time: `${today()}T${a.time.split("T")[1]}`, tokenNumber: i + 1, doctorName: fx.doctor.name }));
+const appointments: Appointment[] = fx.appointments.map((a, i) => ({ ...a, time: `${today()}T${a.time.split("T")[1]}`, tokenNumber: i + 1, bookedBy: "MediBank app", doctorName: fx.doctor.name }));
 let frontDesk: FrontDesk | null = { id: "desk1", username: "reception.mehta", name: "Neha Patel", createdAt: "2026-01-15", lastLogin: new Date().toISOString() };
 const questions = [{ id: 1, text: "What was the name of your first school?" }, { id: 2, text: "What city were you born in?" }, { id: 3, text: "What is your favourite book?" }];
 let answered = [1, 2];
@@ -18,9 +18,9 @@ export function demoFile(path: string): Blob {
 }
 export const extraHandlers = [
   http.get(`${B}/appointments`, ({ request }) => { const date = new URL(request.url).searchParams.get("date") ?? today(); return R.json({ appointments: appointments.map((a) => ({ ...a, time: `${date}T${a.time.split("T")[1]}` })) }); }),
-  http.post(`${B}/appointments`, async ({ request }) => { const b = await request.json(); const a: Appointment = { id: id(), mid: b.mid, patientName: b.patient?.name ?? fx.patients[b.mid]?.name ?? "Demo patient", time: `${b.date}T11:30:00`, reason: b.reason ?? "Consultation", status: "waiting", tokenNumber: appointments.length + 1, doctorName: fx.doctor.name }; appointments.push(a); return R.json(a); }),
+  http.post(`${B}/appointments`, async ({ request }) => { const b = await request.json(); const a: Appointment = { id: id(), mid: b.mid, patientName: b.patient?.name ?? fx.patients[b.mid]?.name ?? "Demo patient", time: b.date, patient: b.patient, vitals: b.vitals, payment: b.payment, bookedBy: fx.doctor.name, reason: b.reason ?? "Consultation", status: "waiting", tokenNumber: appointments.length + 1, doctorName: fx.doctor.name }; appointments.push(a); return R.json(a); }),
   http.patch(`${B}/appointments/:id`, async ({ params, request }) => { const a = appointments.find((a) => a.id === params.id)!; Object.assign(a, await request.json()); return R.json(a); }),
-  http.get(`${B}/appointments/lookup`, ({ request }) => { const q = new URL(request.url).searchParams.get("q"); const p = Object.values(fx.patients).find((p) => p.mid === q || p.phone?.replace(/\D/g, "").endsWith(q ?? "unknown")); return R.json({ patient: p ? { chartId: "chart1", doctorId: fx.doctor.id, name: p.name, phone: p.phone ?? "", gender: p.gender, mid: p.mid } : null }); }),
+  http.get(`${B}/appointments/lookup`, ({ request }) => { const q = new URL(request.url).searchParams.get("q"); const p = Object.values(fx.patients).find((p) => p.mid === q || p.phone?.replace(/\D/g, "").endsWith(q ?? "unknown")); const asLookup = (person: typeof p & {}) => ({ chartId: `chart-${person.mid}`, doctorId: fx.doctor.id, name: person.name, phone: person.phone ?? "", gender: person.gender, mid: person.mid }); const family = p?.phone ? Object.values(fx.patients).filter((person) => person.mid !== p.mid && person.phone === p.phone).map(asLookup) : []; return R.json({ patient: p ? asLookup(p) : null, family }); }),
   http.get(`${B}/front-desk`, () => R.json({ frontDesk })),
   http.post(`${B}/front-desk`, async ({ request }) => { const b = await request.json(); frontDesk = { id: id(), username: b.username, name: b.name, createdAt: new Date().toISOString(), lastLogin: null }; return R.json(frontDesk); }),
   http.delete(`${B}/front-desk`, () => { frontDesk = null; return R.json(null); }),

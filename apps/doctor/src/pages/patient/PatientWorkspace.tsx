@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ShieldAlert, UserX, Loader2 } from "lucide-react";
 import { ApiError } from "@myanodex/shared/api-client";
@@ -38,6 +38,17 @@ export function PatientWorkspace() {
   const showHealthGraph = !!flags?.flags?.health_graph;
   const raw = searchParams.get("tab") || "summary";
   const tab = raw in TITLES && (raw !== "health" || showHealthGraph) ? raw : "summary";
+
+  const consentAttempt = useRef<string | null>(null);
+  useEffect(() => {
+    const state = error instanceof ApiError ? (error.data as ApiErrorBody | undefined)?.state : undefined;
+    if (searchParams.get("requestConsent") !== "1" || !(error instanceof ApiError) || error.status !== 403 || state === "pending" || consentAttempt.current === mid) return;
+    consentAttempt.current = mid;
+    requestConsent.mutate(mid, {
+      onSuccess: (r) => toast.success(r.message),
+      onError: () => toast.error("Could not send consent request. Please try again."),
+    });
+  }, [error, mid, searchParams, requestConsent]);
 
   // Remember this patient so the Consultation menu can point at them.
   useEffect(() => {

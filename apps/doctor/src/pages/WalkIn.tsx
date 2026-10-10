@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Printer, UserPlus, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
@@ -22,7 +23,9 @@ const blankPatient = () => ({ name: "", dob: "", gender: "Male" as Gender, phone
  *  fill the same diagnosis form, hand them a printed prescription. Nothing is
  *  stored against a MID; the visit shows up in /history like any other. */
 export function WalkIn() {
-  const { f: p, setF: setP } = useForm(blankPatient());
+  const location = useLocation();
+  const appointment = (location.state as { appointment?: import("@/types").Appointment } | null)?.appointment;
+  const { f: p, setF: setP } = useForm({ ...blankPatient(), name: appointment?.patientName ?? "", phone: appointment?.patient?.phone ?? "", gender: appointment?.patient?.gender ?? "Male" as Gender });
   const create = useCreateWalkIn();
   const [rx, setRx] = useState<WalkInRecord | null>(null);
 
@@ -81,7 +84,7 @@ export function WalkIn() {
 
       <div className="rounded-lg border bg-card p-5">
         <h3 className="mb-4 text-[15px] font-semibold">Consultation</h3>
-        <DiagnosisForm onSubmit={save} pending={create.isPending} submitLabel="Save and print Rx" summaryOption={false} />
+        <DiagnosisForm initialValues={{ name: appointment?.reason ?? "", vitals: appointment?.vitals ?? {} }} onSubmit={save} pending={create.isPending} submitLabel="Save and print Rx" summaryOption={false} />
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Check, Construction } from "lucide-react";
+import { Check, Construction, ChevronRight } from "lucide-react";
 import { useAppointments, useSetAppointmentStatus } from "@/hooks/use-api";
 import { ApiError } from "@myanodex/shared/api-client";
 import { toast } from "@/components/ui/sonner";
 import { DataTable, type Column } from "@/components/clinical/DataTable";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { VITAL_FIELDS } from "@/lib/diagnosis";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Appointment } from "@/types";
@@ -28,14 +31,6 @@ const statusVariant: Record<Appointment["status"], "default" | "primary" | "succ
   completed: "success",
   cancelled: "default",
 };
-
-const appointmentColumns: Column<Appointment>[] = [
-  { key: "time", header: "Time", className: "tabular-nums whitespace-nowrap", render: (a) => format(new Date(a.time), "h:mm a") },
-  { key: "patient", header: "Patient", render: (a) => <span className="font-medium">{a.patientName}</span> },
-  { key: "reason", header: "Chief complaint", className: "text-muted-foreground", render: (a) => a.reason },
-  { key: "status", header: "Status", render: (a) => <Badge variant={statusVariant[a.status]} className="capitalize">{a.status.replace("-", " ")}</Badge> },
-  { key: "done", header: "", className: "w-24 text-right", render: (a) => <DoneButton a={a} /> },
-];
 
 /** Done / Undo on one appointment. Stops the click: the row itself opens the patient. */
 function DoneButton({ a }: { a: Appointment }) {
@@ -64,7 +59,25 @@ function DoneButton({ a }: { a: Appointment }) {
 export function AppointmentsTable({ paged = false }: { paged?: boolean }) {
   const { data } = useAppointments();
   const navigate = useNavigate();
+  const [selected, setSelected] = useState<Appointment | null>(null);
+  function openPatient(a: Appointment) {
+    if (a.mid) navigate(`/patients/${a.mid}?requestConsent=1`);
+    else navigate("/walk-in", { state: { appointment: a } });
+  }
+  const appointmentColumns: Column<Appointment>[] = [
+    { key: "serial", header: "Sl No.", render: (_, i) => i + 1 },
+    { key: "patient", header: "Name", render: (a) => <button className="font-medium text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.patientName}</button> },
+    { key: "mid", header: "MID", render: (a) => a.mid ? <button className="text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.mid}</button> : "—" },
+    { key: "date", header: "Date", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "dd MMM yyyy") },
+    { key: "time", header: "Time", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "h:mm a") },
+    { key: "bookedBy", header: "Booked by", render: (a) => a.bookedBy || "—" },
+    { key: "status", header: "Status", render: (a) => <Badge variant={statusVariant[a.status]} className="capitalize">{a.status.replace("-", " ")}</Badge> },
+    { key: "payment", header: "Payment", render: (a) => a.payment ? `${a.payment.paid ? "Paid" : "Unpaid"} · ₹${a.payment.amount} · ${a.payment.mode}` : "—" },
+    { key: "details", header: "Details", render: (a) => <Button size="icon" variant="ghost" aria-label={`View appointment for ${a.patientName}`} onClick={(e) => { e.stopPropagation(); setSelected(a); }}><ChevronRight /></Button> },
+  ];
   return (
+    <>
+
     <DataTable
       paged={paged}
       searchable={paged ? (a) => `${a.patientName} ${a.mid ?? ""} ${a.reason}` : undefined}
@@ -72,8 +85,27 @@ export function AppointmentsTable({ paged = false }: { paged?: boolean }) {
       rows={data?.appointments ?? []}
       getRowKey={(a) => a.id}
       empty="No appointments today."
-      onRowClick={(a) => a.mid && navigate(`/patients/${a.mid}`)}
+      onRowClick={(a: Appointment) => setSelected(a)}
     />
+    <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Appointment details</DialogTitle></DialogHeader>
+        {selected && <div className="flex flex-col gap-3 text-sm">
+          <p className="text-base font-semibold">{selected.patientName}</p>
+          {selected.mid && <p>MID: {selected.mid}</p>}
+          <p>{format(new Date(selected.time), "dd MMM yyyy, h:mm a")}</p>
+          <p>Booked by: {selected.bookedBy || "—"}</p>
+          <p>Doctor: {selected.doctorName || "—"}</p>
+          <p>Chief complaint: {selected.reason || "—"}</p>
+          <p className="capitalize">Status: {selected.status.replace("-", " ")}</p>
+          <p>Payment: {selected.payment ? `${selected.payment.paid ? "Paid" : "Unpaid"} · ₹${selected.payment.amount} · ${selected.payment.mode}` : "—"}</p>
+          {selected.payment?.reference && <p>Payment reference: {selected.payment.reference}</p>}
+          {selected.vitals && <div className="grid grid-cols-2 gap-2 rounded-md border p-3">{VITAL_FIELDS.map((v) => <p key={v.key}>{v.label}: {selected.vitals?.[v.key] ? `${selected.vitals[v.key]} ${v.unit}` : "—"}</p>)}</div>}
+          <div className="flex justify-end gap-2"><DoneButton a={selected} /><Button onClick={() => openPatient(selected)}>{selected.mid ? "Open patient summary" : "Open walk-in Rx"}</Button></div>
+        </div>}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

@@ -229,7 +229,7 @@ export function useAppointments(date?: string) {
 export function useAppointmentLookup(q: string | null) {
   return useQuery({
     queryKey: ["doctor", "appointments", "lookup", q],
-    queryFn: () => api.get<{ patient: AppointmentLookup | null }>(`/appointments/lookup?q=${encodeURIComponent(q!)}`),
+    queryFn: () => api.get<{ patient: AppointmentLookup | null; family?: AppointmentLookup[] }>(`/appointments/lookup?q=${encodeURIComponent(q!)}`),
     enabled: !!q,
     staleTime: 60_000,
   });

@@ -197,6 +197,10 @@ export interface Appointment {
   status: "waiting" | "in-progress" | "completed" | "cancelled";
   tokenNumber?: number | null;
   doctorName?: string;
+  bookedBy?: string;
+  patient?: { name: string; phone?: string; gender?: Gender };
+  vitals?: DiagnosisVitals;
+  payment?: { amount: number; mode: "UPI" | "Cash"; paid: boolean; reference?: string };
 }
 
 /** What POST /appointments takes (owner or front desk, in a clinic). */
@@ -207,7 +211,8 @@ export interface AppointmentInput {
   patient?: { name: string; age?: string; gender?: Gender; phone?: string };
   date: string;
   reason?: string;
-  payment?: { amount: number; mode: "UPI" | "Cash"; paid: boolean };
+  payment?: { amount: number; mode: "UPI" | "Cash"; paid: boolean; reference?: string };
+  vitals?: DiagnosisVitals;
 }
 
 /** GET /appointments/lookup: the newest chart this clinic has already seen for a phone or MID. */
