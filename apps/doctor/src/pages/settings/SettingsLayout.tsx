@@ -11,7 +11,8 @@ export function SettingsLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const isDesk = user?.role === "receptionist";
-  const clinicTabs = pathname.replace(/\/$/, "") !== "/settings/clinic" && (isDesk || !!user?.plan?.isPro);
+  const settingsPath = pathname.replace(/\/$/, "");
+  const clinicTabs = !["/settings/account", "/settings/clinic"].includes(settingsPath) && (isDesk || !!user?.plan?.isPro);
 
   const tabs = [
     { to: "/settings/account", label: "Account & security" },
