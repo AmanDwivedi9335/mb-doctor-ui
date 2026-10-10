@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { KeyRound, Mail, Phone, ShieldQuestion, LogOut, Trash2, AtSign } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { KeyRound, Mail, Phone, ShieldQuestion, LogOut, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth, ApiError } from "@/contexts/DoctorAuthContext";
 import { authApi } from "@/lib/api";
@@ -58,11 +58,6 @@ export function AccountSecurity() {
             </Row>
             <Row icon={Phone} label="Mobile number" sub={user.mobile ?? "Not set"}>
               <Button size="sm" variant="outline" onClick={() => setDialog("mobile")}>{user.mobile ? "Change" : "Add"}</Button>
-            </Row>
-            <Row icon={AtSign} label="Username" sub={user.username ?? "Not set"}>
-              <Button size="sm" variant="ghost" asChild>
-                <Link to="/profile">Edit in profile</Link>
-              </Button>
             </Row>
           </CardContent>
         </Card>
