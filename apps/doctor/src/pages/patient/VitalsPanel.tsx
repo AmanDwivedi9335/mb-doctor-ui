@@ -56,12 +56,6 @@ export function VitalsPanel({ mid }: { mid: string }) {
     }
   }
 
-  const columns: Column<Vital>[] = [
-    { key: "type", header: "Measure", render: (v) => TYPES.find((t) => t.value === v.type)?.label ?? v.type },
-    { key: "value", header: "Value", className: "tabular-nums font-medium", render: fmtValue },
-    { key: "date", header: "Recorded", className: "tabular-nums whitespace-nowrap text-muted-foreground", render: (v) => format(new Date(v.recordDate), "d MMM yyyy") },
-  ];
-
   if (isLoading) return <Skeleton className="h-64" />;
 
   return (
@@ -77,7 +71,6 @@ export function VitalsPanel({ mid }: { mid: string }) {
         <VitalTrend key={`${mid}-first`} rows={rows} defaultMetric="blood_pressure" title="Measure 1" />
         <VitalTrend key={`${mid}-second`} rows={rows} defaultMetric="blood_glucose" title="Measure 2" />
       </div>
-      <DataTable columns={columns} rows={rows} getRowKey={(v) => v.id} empty="No vitals recorded." />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -124,8 +117,13 @@ function VitalTrend({ rows, defaultMetric, title }: { rows: Vital[]; defaultMetr
     diastolic: typeof r.value === "object" ? r.value.diastolic : undefined,
   }));
   const latest = readings[readings.length - 1];
+  const columns: Column<Vital>[] = [
+    { key: "value", header: "Value", className: "tabular-nums font-medium", render: fmtValue },
+    { key: "date", header: "Recorded", className: "tabular-nums whitespace-nowrap text-muted-foreground", render: (v) => format(new Date(v.recordDate), "d MMM yyyy") },
+  ];
 
   return (
+    <div className="flex min-w-0 flex-col gap-4">
     <Card className="min-w-0">
       <CardHeader className="space-y-3">
         <CardTitle>{title}</CardTitle>
@@ -164,5 +162,7 @@ function VitalTrend({ rows, defaultMetric, title }: { rows: Vital[]; defaultMetr
         {metric === "blood_pressure" && latest && <p className="mt-1 text-xs text-muted-foreground">Purple: systolic · Gray: diastolic</p>}
       </CardContent>
     </Card>
+    <DataTable columns={columns} rows={readings} getRowKey={(v) => v.id} empty={`No ${meta.label.toLowerCase()} readings recorded.`} />
+    </div>
   );
 }
