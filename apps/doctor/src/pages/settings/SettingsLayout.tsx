@@ -12,7 +12,7 @@ export function SettingsLayout() {
   const { pathname } = useLocation();
   const isDesk = user?.role === "receptionist";
   const settingsPath = pathname.replace(/\/$/, "");
-  const clinicTabs = !["/settings/account", "/settings/clinic"].includes(settingsPath) && (isDesk || !!user?.plan?.isPro);
+  const clinicTabs = !["/settings/account", "/settings/clinic", "/settings/subscription"].includes(settingsPath) && (isDesk || !!user?.plan?.isPro);
 
   const tabs = [
     { to: "/settings/account", label: "Account & security" },
