@@ -15,3 +15,15 @@ pnpm build
 ```
 
 Sample patient MID: `22052661001002` (Priya Sharma). Demo fixtures live in `apps/doctor/src/mocks/fixtures`; local data operations live in `apps/doctor/src/mocks/handlers.ts` and `demo-extras.ts`.
+
+## Profile and settings changes
+
+Profile has My Profile, My Clinic Profile, and Linked Clinics tabs. Personal details support multiple specialisations; qualifications include a year; professional experience is optional and repeatable. Clinic details and opening hours are separate cards. Temporary changes use inclusive start/end dates, cannot overlap, and override normal hours during booking without rewriting the weekly schedule.
+
+Linked Clinics is available on Basic and Pro. Requests stay pending until the principal doctor approves them. Principal doctors review requests in Linked Clinics or Clinic settings > Doctors. Approved members can leave; pending requests can be cancelled. Owners must transfer ownership before leaving (ownership transfer is outside this demo). Expanded rows show the doctor's assigned hours, not clinic opening hours. Appointment routes require Pro.
+
+Individual Settings tabs remain Account & security, Subscription, and Contact us across routes; clinic management is still in the sidebar. Account preferences include demo MFA, an active inactivity timeout, logout everywhere across open demo tabs, English display language, and an illustrative referral link. MFA uses `123456`, sends no real messages, and is enforced on the local sign-in flow while enabled. Additional languages need approved translations; referral rewards and production session revocation need backend integration.
+
+Subscriptions offer only 6 months or Annual. Illustrative totals use the existing monthly fixture rates multiplied by 6 or 12, with no assumed discount. Renewals extend the current expiry, use a unique simulated order, and add a Payment History entry. Payment navigation stays within the app to retain session-local demo state. Business-approved pricing, real payments, secure MFA, persistent memberships and preferences, and principal notifications require production services. Demo data still resets on reload.
+
+Help & Tutorial includes FAQs and step-by-step guides for the new profile, membership, hours, security and renewal workflows. Regression tests in `profile-settings.test.ts` cover approval permissions, pending membership isolation, owner protection, temporary-hour validation, MFA verification and renewal periods.

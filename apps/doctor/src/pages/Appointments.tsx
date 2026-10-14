@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { clinicHoursOn } from "@/lib/profile-settings";
 import { format } from "date-fns";
 import { Plus, Loader2, Search } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
@@ -113,6 +114,11 @@ export function Appointments() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (profile) {
+      const hours = clinicHoursOn(profile, f.date);
+      if (hours.closed) return toast.error("The clinic is closed on this date.");
+      if (f.time < hours.opens || f.time >= hours.closes) return toast.error(`Choose a time between ${hours.opens} and ${hours.closes}.`);
+    }
     if (f.id.trim() && !key) return toast.error("Enter a valid 14-digit MID or phone number.");
     if (lookup.isFetching) return toast.error("Wait for the patient search to finish.");
     if (people.length && !hit) return toast.error("Select the patient this appointment is for.");

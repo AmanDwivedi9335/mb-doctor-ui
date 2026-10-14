@@ -22,6 +22,8 @@ export function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [needsMfa, setNeedsMfa] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -29,11 +31,12 @@ export function Login() {
     setError(null);
     setBusy(true);
     try {
-      await login(identifier.trim(), password, role);
+      await login(identifier.trim(), password, role, mfaCode);
       // The route guard sends an applicant to their application and an unpaid
       // doctor to the plan page; everyone else lands where they were going.
       navigate(from === "/login" ? "/" : from, { replace: true });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 428) setNeedsMfa(true);
       setError(err instanceof ApiError ? err.message : "Could not sign in. Try again.");
     } finally {
       setBusy(false);
@@ -97,6 +100,7 @@ export function Login() {
               placeholder="Your password"
               required
             />
+            {needsMfa && <TextField label="MFA verification code" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required hint="Local demo code: 123456" />}
           </div>
 
           <div className="mt-2 text-right">

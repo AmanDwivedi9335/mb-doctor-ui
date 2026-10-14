@@ -38,8 +38,8 @@ export function Payment() {
             <h2 className="text-lg font-semibold">Plan active</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {data?.entitlement.planCode ? `${data.entitlement.planCode === "pro" ? "Pro" : "Basic"} plan` : "Your plan"} runs until{" "}
-              {data?.entitlement.endsAt ? new Date(data.entitlement.endsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "next month"}.
-              A receipt is on its way to your email.
+              {data?.entitlement.endsAt ? new Date(data.entitlement.endsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "the selected period ends"}.
+              This is a simulated payment. No charge was made or receipt emailed.
             </p>
             <Button asChild className="mt-5">
               <Link to="/">Open the portal</Link>

@@ -411,7 +411,7 @@ export function usePlans() {
 /** Starts a purchase; the caller sends the browser to `paymentUrl`. */
 export function useCheckout() {
   return useMutation({
-    mutationFn: (plan: string) => api.post<{ paymentUrl: string; merchantTxnNo: string }>("/billing/checkout", { plan }),
+    mutationFn: (body: { plan: string; months: 6 | 12 }) => api.post<{ paymentUrl: string; merchantTxnNo: string }>("/billing/checkout", body),
   });
 }
 export interface OrderStatus {

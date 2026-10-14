@@ -33,6 +33,7 @@ export function ProtectedRoute({ children, stage = "portal" }: { children: React
   if (stage === "portal" && user.role === "doctor") {
     if (user.reviewStatus === "submitted") return <Navigate to="/apply/pending" replace />;
     if (user.reviewStatus === "draft" || user.reviewStatus === "rejected") return <Navigate to="/apply/onboarding" replace />;
+    if (!user.plan?.isPro && ["/appointments", "/billing", "/dashboard", "/analytics/patients", "/analytics/billing", "/settings/doctors", "/settings/staff"].includes(location.pathname)) return <Navigate to="/settings/subscription" replace />;
     const unpaid = !!user.plan?.enforced && !user.plan.active;
     // Account settings stay open without a plan: a lapsed doctor can still close the account or fix their sign-in.
     const allowed = ["/settings/subscription", "/settings/account", "/settings/security-questions", "/change-password"].includes(location.pathname);

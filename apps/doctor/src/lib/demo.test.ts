@@ -7,7 +7,7 @@ const storage = new Map<string, string>();
 Object.defineProperty(globalThis, "sessionStorage", { value: { getItem: (k: string) => storage.get(k) ?? null, setItem: (k: string, v: string) => storage.set(k, v), removeItem: (k: string) => storage.delete(k) } });
 globalThis.fetch = async () => { throw new Error("Demo attempted a network request"); };
 
-for (const path of ["/me", "/config/feature-flags", "/dashboard/stats", "/dashboard/overview", "/dashboard/analytics/patients", "/dashboard/analytics/billing", "/history", "/appointments", "/clinics", "/me/invites", "/front-desk", "/clinic/profile", "/clinic/doctors", "/clinic/staff", "/clinic/faqs", "/clinic/billing", "/billing/me", "/billing/plans", "/billing/history", "/billing/orders/DEMO", "/support/messages", "/notifications", "/profile"]) {
+for (const path of ["/me", "/config/feature-flags", "/dashboard/stats", "/dashboard/overview", "/dashboard/analytics/patients", "/dashboard/analytics/billing", "/history", "/appointments", "/clinics", "/me/invites", "/front-desk", "/clinic/profile", "/clinic/doctors", "/clinic/staff", "/clinic/faqs", "/clinic/billing", "/billing/me", "/billing/plans", "/billing/history", "/support/messages", "/notifications", "/profile"]) {
   assert.ok(await api.get(path), path);
 }
 for (const path of ["/patients", "/diagnosis", "/procedures", "/reports", "/health-data", "/followups", "/summary/medications", "/summary/allergies"]) {

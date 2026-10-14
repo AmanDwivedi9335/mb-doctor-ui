@@ -101,11 +101,11 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 <UserRound /> Profile
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onSelect={() => navigate("/help")}>
-              <HelpCircle /> Help &amp; Tutorial
-            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => navigate("/settings/account")}>
               <Settings /> Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate("/help")}>
+              <HelpCircle /> Help &amp; Tutorial
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={async () => {

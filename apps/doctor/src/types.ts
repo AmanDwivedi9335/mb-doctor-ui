@@ -67,7 +67,9 @@ export interface DoctorUser {
   emergencyMobile?: string;
   registrationNo?: string;
   registrationIds?: string[];
-  education?: { qualification: string; college: string; city: string; state: string; country: string }[];
+  education?: { qualification: string; college: string; city: string; state: string; country: string; year?: string }[];
+  specializations?: string[];
+  experience?: { title: string; organisation: string; from: string; to: string }[];
   adminPortalRequested?: boolean;
   id: string;
   name: string;
@@ -289,6 +291,7 @@ export interface Clinic {
   operatingHoursStart: string;
   operatingHoursEnd: string;
   operatingHours?: ClinicOperatingDay[];
+  temporaryHours?: { id: string; start: string; end: string; closed: boolean; opens: string; closes: string; note: string }[];
   logoUrl?: string | null;
   qrUrl?: string | null;
 }
@@ -348,6 +351,8 @@ export interface Plan {
   code: string;
   name: string;
   priceMonthly: number;
+  priceSixMonths: number;
+  priceAnnual: number;
   seats: number;
   pro?: boolean;
   features: string[];

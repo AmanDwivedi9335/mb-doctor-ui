@@ -1,22 +1,65 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, QrCode, Upload, ImagePlus } from "lucide-react";
+import { Plus, QrCode, Upload, ImagePlus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
-import { useClinicProfile, useUpdateClinicProfile, useCreateClinic, useUploadClinicImage, useClinicQr } from "@/hooks/use-api";
+import {
+  useClinicProfile,
+  useUpdateClinicProfile,
+  useCreateClinic,
+  useUploadClinicImage,
+  useClinicQr,
+} from "@/hooks/use-api";
 import { ApiError } from "@myanodex/shared/api-client";
 import { useForm } from "@/hooks/use-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/form/FormKit";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
 import { ClinicLogo } from "@/components/clinical/ClinicLogo";
-import type { ClinicOperatingDay } from "@/types";
+import { validTemporaryHours } from "@/lib/profile-settings";
+import type { Clinic, ClinicOperatingDay } from "@/types";
 
-const DAYS: ClinicOperatingDay["day"][] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-const weeklyHours = (opens = "09:00", closes = "20:00", saved: ClinicOperatingDay[] = []): ClinicOperatingDay[] =>
-  DAYS.map((day) => ({ day, opens, closes, closed: false, ...saved.find((entry) => entry.day === day) }));
-const EMPTY = { name: "", address: "", phone: "", website: "", receptionMobile: "", upiId: "", operatingHoursStart: "09:00", operatingHoursEnd: "20:00", operatingHours: weeklyHours() };
+const DAYS: ClinicOperatingDay["day"][] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+const weeklyHours = (
+  opens = "09:00",
+  closes = "20:00",
+  saved: ClinicOperatingDay[] = [],
+): ClinicOperatingDay[] =>
+  DAYS.map((day) => ({
+    day,
+    opens,
+    closes,
+    closed: false,
+    ...saved.find((entry) => entry.day === day),
+  }));
+const EMPTY = {
+  name: "",
+  address: "",
+  phone: "",
+  website: "",
+  receptionMobile: "",
+  upiId: "",
+  operatingHoursStart: "09:00",
+  operatingHoursEnd: "20:00",
+  operatingHours: weeklyHours(),
+  temporaryHours: [] as NonNullable<Clinic["temporaryHours"]>,
+};
 
 /** The active clinic's details, or the form that creates the first one. */
 export function ClinicProfile() {
@@ -32,8 +75,8 @@ export function ClinicProfile() {
         <CardHeader>
           <CardTitle>Set your clinic name</CardTitle>
           <p className="text-[13px] text-muted-foreground">
-            A clinic gets its own appointments, invoices and statistics. Invite other doctors to it and give your reception
-            a front desk login.
+            A clinic gets its own appointments, invoices and statistics. Invite
+            other doctors to it and give your reception a front desk login.
           </p>
         </CardHeader>
         <CardContent>
@@ -81,7 +124,13 @@ export function ClinicProfile() {
   );
 }
 
-function CreateClinicForm({ onCreated, inDialog }: { onCreated: (id: string) => void | Promise<void>; inDialog?: boolean }) {
+function CreateClinicForm({
+  onCreated,
+  inDialog,
+}: {
+  onCreated: (id: string) => void | Promise<void>;
+  inDialog?: boolean;
+}) {
   const create = useCreateClinic();
   const { f, setF } = useForm({ name: "", address: "", phone: "" });
 
@@ -89,29 +138,54 @@ function CreateClinicForm({ onCreated, inDialog }: { onCreated: (id: string) => 
     e.preventDefault();
     if (!f.name.trim()) return toast.error("Clinic name is required.");
     try {
-      const clinic = await create.mutateAsync({ name: f.name.trim(), address: f.address.trim() || null, phone: f.phone.trim() || null });
+      const clinic = await create.mutateAsync({
+        name: f.name.trim(),
+        address: f.address.trim() || null,
+        phone: f.phone.trim() || null,
+      });
       toast.success(`${clinic.name} created.`);
       await onCreated(clinic.id);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not create the clinic.");
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not create the clinic.",
+      );
     }
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <TextField label="Clinic name" value={f.name} onChange={(e) => setF("name", e.target.value)} autoFocus />
-      <TextField label="Address" value={f.address} onChange={(e) => setF("address", e.target.value)} />
-      <TextField label="Phone" value={f.phone} onChange={(e) => setF("phone", e.target.value)} />
+      <TextField
+        label="Clinic name"
+        value={f.name}
+        onChange={(e) => setF("name", e.target.value)}
+        autoFocus
+      />
+      <TextField
+        label="Address"
+        value={f.address}
+        onChange={(e) => setF("address", e.target.value)}
+      />
+      <TextField
+        label="Phone"
+        value={f.phone}
+        onChange={(e) => setF("phone", e.target.value)}
+      />
       {inDialog ? (
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
           </DialogClose>
-          <Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating..." : "Create clinic"}</Button>
+          <Button type="submit" disabled={create.isPending}>
+            {create.isPending ? "Creating..." : "Create clinic"}
+          </Button>
         </DialogFooter>
       ) : (
         <div className="flex justify-end">
-          <Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating..." : "Create clinic"}</Button>
+          <Button type="submit" disabled={create.isPending}>
+            {create.isPending ? "Creating..." : "Create clinic"}
+          </Button>
         </div>
       )}
     </form>
@@ -121,7 +195,9 @@ function CreateClinicForm({ onCreated, inDialog }: { onCreated: (id: string) => 
 function EditClinic() {
   const { user, activeClinicId, refreshSession } = useAuth();
   // Payment details (QR, UPI ID) are the owning doctor's alone, never the desk's.
-  const isOwner = user?.role === "doctor" && user.clinics.find((c) => c.id === activeClinicId)?.role === "owner";
+  const isOwner =
+    user?.role === "doctor" &&
+    user.clinics.find((c) => c.id === activeClinicId)?.role === "owner";
   const { data, isLoading, error } = useClinicProfile();
   const qr = useClinicQr(activeClinicId, !!data?.qrUrl);
   const update = useUpdateClinicProfile();
@@ -140,7 +216,12 @@ function EditClinic() {
         upiId: data.upiId ?? "",
         operatingHoursStart: data.operatingHoursStart,
         operatingHoursEnd: data.operatingHoursEnd,
-        operatingHours: weeklyHours(data.operatingHoursStart, data.operatingHoursEnd, data.operatingHours),
+        operatingHours: weeklyHours(
+          data.operatingHoursStart,
+          data.operatingHoursEnd,
+          data.operatingHours,
+        ),
+        temporaryHours: data.temporaryHours ?? [],
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -148,8 +229,19 @@ function EditClinic() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!f.name.trim()) return toast.error("Clinic name is required.");
-    const missingHours = f.operatingHours.find((entry) => !entry.closed && (!entry.opens || !entry.closes));
-    if (missingHours) return toast.error(`Enter opening and closing times for ${missingHours.day}.`);
+    const missingHours = f.operatingHours.find(
+      (entry) => !entry.closed && (!entry.opens || !entry.closes),
+    );
+    if (missingHours)
+      return toast.error(
+        `Enter opening and closing times for ${missingHours.day}.`,
+      );
+    if (f.operatingHours.some((h) => !h.closed && h.opens >= h.closes))
+      return toast.error("Closing time must be after opening time.");
+    if (!validTemporaryHours(f.temporaryHours))
+      return toast.error(
+        "Temporary changes need valid dates and hours, without overlapping date ranges.",
+      );
     try {
       await update.mutateAsync(isOwner ? f : { ...f, upiId: undefined });
       await refreshSession();
@@ -160,97 +252,362 @@ function EditClinic() {
     }
   }
 
-  const pick = (m: typeof uploadQr) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
-      toast.error("Choose a PNG, JPG or WebP image up to 2 MB.");
-      return;
-    }
-    const form = new FormData();
-    form.append("file", file, file.name);
-    m.mutate(form, { onSuccess: () => toast.success("Uploaded."), onError: (err) => toast.error(err instanceof ApiError ? err.message : "Upload failed.") });
-  };
+  const pick =
+    (m: typeof uploadQr) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      if (
+        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+        file.size > 2 * 1024 * 1024
+      ) {
+        toast.error("Choose a PNG, JPG or WebP image up to 2 MB.");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file, file.name);
+      m.mutate(form, {
+        onSuccess: () => toast.success("Uploaded."),
+        onError: (err) =>
+          toast.error(err instanceof ApiError ? err.message : "Upload failed."),
+      });
+    };
 
-  if (error) return <div className="text-sm text-destructive">{error instanceof ApiError ? error.message : "Could not load the clinic."}</div>;
+  if (error)
+    return (
+      <div className="text-sm text-destructive">
+        {error instanceof ApiError
+          ? error.message
+          : "Could not load the clinic."}
+      </div>
+    );
   if (isLoading || !data) return <Skeleton className="h-96" />;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+    <form onSubmit={save} className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>Clinic details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={save} className="flex flex-col gap-3">
-            <TextField label="Clinic name" value={f.name} onChange={(e) => setF("name", e.target.value)} />
-            <TextField label="Address" value={f.address} onChange={(e) => setF("address", e.target.value)} />
+          <div className="flex flex-col gap-3">
+            <TextField
+              label="Clinic name"
+              value={f.name}
+              onChange={(e) => setF("name", e.target.value)}
+            />
+            <TextField
+              label="Address"
+              value={f.address}
+              onChange={(e) => setF("address", e.target.value)}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <TextField label="Phone" value={f.phone} onChange={(e) => setF("phone", e.target.value)} />
-              <TextField label="Reception mobile" value={f.receptionMobile} onChange={(e) => setF("receptionMobile", e.target.value)} />
+              <TextField
+                label="Phone"
+                value={f.phone}
+                onChange={(e) => setF("phone", e.target.value)}
+              />
+              <TextField
+                label="Reception mobile"
+                value={f.receptionMobile}
+                onChange={(e) => setF("receptionMobile", e.target.value)}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <TextField label="Website" value={f.website} onChange={(e) => setF("website", e.target.value)} />
+              <TextField
+                label="Website"
+                value={f.website}
+                onChange={(e) => setF("website", e.target.value)}
+              />
               <TextField
                 label="UPI ID"
                 value={f.upiId}
                 onChange={(e) => setF("upiId", e.target.value)}
                 disabled={!isOwner}
-                hint={isOwner ? undefined : "Only the clinic's doctor can change this."}
+                hint={
+                  isOwner
+                    ? undefined
+                    : "Only the clinic's doctor can change this."
+                }
               />
             </div>
-            <section className="mt-2 flex flex-col gap-3 border-t pt-4" aria-labelledby="clinic-hours-heading">
-              <h3 id="clinic-hours-heading" className="text-sm font-semibold">Weekly opening hours</h3>
-              <p className="text-xs text-muted-foreground">Set opening and closing times for each day. Any temporary changes to clinic hours can also be updated here.</p>
-              {f.operatingHours.map((entry) => {
-                const dayLabel = entry.day.charAt(0).toUpperCase() + entry.day.slice(1);
-                const change = (patch: Partial<ClinicOperatingDay>) => setF("operatingHours", f.operatingHours.map((day) => day.day === entry.day ? { ...day, ...patch } : day));
-                return (
-                  <div key={entry.day} className="grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[110px_1fr_1fr_auto]">
-                    <span className="text-sm font-medium">{dayLabel}</span>
-                    <TextField label="Opens" aria-label={`${dayLabel} opens`} type="time" value={entry.opens} disabled={entry.closed} required={!entry.closed} onChange={(e) => change({ opens: e.target.value })} />
-                    <TextField label="Closes" aria-label={`${dayLabel} closes`} type="time" value={entry.closes} disabled={entry.closed} required={!entry.closed} onChange={(e) => change({ closes: e.target.value })} />
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={entry.closed} onChange={(e) => change({ closed: e.target.checked })} aria-label={`${dayLabel} closed`} />Closed</label>
+            <section
+              className="space-y-4 border-t pt-4"
+              aria-label="Branding and payment"
+            >
+              <ClinicLogo />
+              <section aria-labelledby="payment-qr-heading">
+                <h2
+                  id="payment-qr-heading"
+                  className="flex items-center gap-1.5 text-sm font-semibold"
+                >
+                  <QrCode className="size-4" /> Payment QR
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data.qrUrl
+                    ? "Shown to patients when an appointment is booked."
+                    : "Not added yet. Shown to patients when an appointment is booked."}
+                </p>
+                <div className="mt-3 flex flex-col items-start gap-3">
+                  <div className="flex h-20 w-28 items-center justify-center rounded-lg border bg-white p-2">
+                    {qr ? (
+                      <img
+                        src={qr}
+                        alt="Clinic payment QR"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <ImagePlus className="size-7 text-muted-foreground" />
+                    )}
                   </div>
-                );
-              })}
+                  {isOwner ? (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={qrInput}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        aria-label={
+                          data.qrUrl ? "Change payment QR" : "Upload payment QR"
+                        }
+                        className="sr-only"
+                        disabled={uploadQr.isPending}
+                        onChange={pick(uploadQr)}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={uploadQr.isPending}
+                        onClick={() => qrInput.current?.click()}
+                      >
+                        <Upload />
+                        {uploadQr.isPending
+                          ? "Uploading..."
+                          : data.qrUrl
+                            ? "Change QR"
+                            : "Upload QR"}
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        PNG, JPG or WebP · up to 2 MB
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="font-normal text-[12px] text-muted-foreground">
+                      Only the clinic's doctor can change this.
+                    </span>
+                  )}
+                </div>
+              </section>
             </section>
-            {dirty && (
-              <div className="flex justify-end pt-1">
-                <Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving..." : "Save changes"}</Button>
-              </div>
-            )}
-          </form>
+          </div>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader>
-          <CardTitle>Branding and payment</CardTitle>
+          <CardTitle>Opening hours</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <ClinicLogo />
-          <section aria-labelledby="payment-qr-heading">
-            <h2 id="payment-qr-heading" className="flex items-center gap-1.5 text-sm font-semibold"><QrCode className="size-4" /> Payment QR</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{data.qrUrl ? "Shown to patients when an appointment is booked." : "Not added yet. Shown to patients when an appointment is booked."}</p>
-            <div className="mt-3 flex flex-col items-start gap-3">
-              <div className="flex h-20 w-28 items-center justify-center rounded-lg border bg-white p-2">
-                {qr ? <img src={qr} alt="Clinic payment QR" className="max-h-full max-w-full object-contain" /> : <ImagePlus className="size-7 text-muted-foreground" />}
-              </div>
-            {isOwner ? (
-              <div className="flex flex-col gap-2">
-                <input ref={qrInput} type="file" accept="image/png,image/jpeg,image/webp" aria-label={data.qrUrl ? "Change payment QR" : "Upload payment QR"} className="sr-only" disabled={uploadQr.isPending} onChange={pick(uploadQr)} />
-                <Button type="button" size="sm" disabled={uploadQr.isPending} onClick={() => qrInput.current?.click()}><Upload />{uploadQr.isPending ? "Uploading..." : data.qrUrl ? "Change QR" : "Upload QR"}</Button>
-                <span className="text-[11px] text-muted-foreground">PNG, JPG or WebP · up to 2 MB</span>
-              </div>
-            ) : (
-              <span className="font-normal text-[12px] text-muted-foreground">Only the clinic's doctor can change this.</span>
-            )}
-            </div>
+        <CardContent>
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="clinic-hours-heading"
+          >
+            <h3 id="clinic-hours-heading" className="text-sm font-semibold">
+              Weekly opening hours
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Set the normal weekly schedule. Temporary changes below take
+              precedence within their date range.
+            </p>
+            {f.operatingHours.map((entry) => {
+              const dayLabel =
+                entry.day.charAt(0).toUpperCase() + entry.day.slice(1);
+              const change = (patch: Partial<ClinicOperatingDay>) =>
+                setF(
+                  "operatingHours",
+                  f.operatingHours.map((day) =>
+                    day.day === entry.day ? { ...day, ...patch } : day,
+                  ),
+                );
+              return (
+                <div
+                  key={entry.day}
+                  className="grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[110px_1fr_1fr_auto]"
+                >
+                  <span className="text-sm font-medium">{dayLabel}</span>
+                  <TextField
+                    label="Opens"
+                    aria-label={`${dayLabel} opens`}
+                    type="time"
+                    value={entry.opens}
+                    disabled={entry.closed}
+                    required={!entry.closed}
+                    onChange={(e) => change({ opens: e.target.value })}
+                  />
+                  <TextField
+                    label="Closes"
+                    aria-label={`${dayLabel} closes`}
+                    type="time"
+                    value={entry.closes}
+                    disabled={entry.closed}
+                    required={!entry.closed}
+                    onChange={(e) => change({ closes: e.target.value })}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={entry.closed}
+                      onChange={(e) => change({ closed: e.target.checked })}
+                      aria-label={`${dayLabel} closed`}
+                    />
+                    Closed
+                  </label>
+                </div>
+              );
+            })}
+          </section>
+          <section
+            className="mt-5 space-y-3 border-t pt-4"
+            aria-label="Temporary changes"
+          >
+            <h3 className="text-sm font-semibold">
+              Temporary changes to hours or operations
+            </h3>
+            {f.temporaryHours.map((entry, index) => {
+              const change = (patch: Partial<typeof entry>) =>
+                setF(
+                  "temporaryHours",
+                  f.temporaryHours.map((item, i) =>
+                    i === index ? { ...item, ...patch } : item,
+                  ),
+                );
+              return (
+                <div key={entry.id} className="space-y-3 rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      Temporary change {index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove temporary change ${index + 1}`}
+                      onClick={() =>
+                        setF(
+                          "temporaryHours",
+                          f.temporaryHours.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <TextField
+                      label="Start date"
+                      type="date"
+                      value={entry.start}
+                      required
+                      onChange={(e) => change({ start: e.target.value })}
+                    />
+                    <TextField
+                      label="End date"
+                      type="date"
+                      min={entry.start}
+                      value={entry.end}
+                      required
+                      onChange={(e) => change({ end: e.target.value })}
+                    />
+                    <TextField
+                      label="Opens"
+                      type="time"
+                      value={entry.opens}
+                      disabled={entry.closed}
+                      required={!entry.closed}
+                      onChange={(e) => change({ opens: e.target.value })}
+                    />
+                    <TextField
+                      label="Closes"
+                      type="time"
+                      value={entry.closes}
+                      disabled={entry.closed}
+                      required={!entry.closed}
+                      onChange={(e) => change({ closes: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={entry.closed}
+                      onChange={(e) => change({ closed: e.target.checked })}
+                    />
+                    Clinic closed during this period
+                  </label>
+                  <TextField
+                    label="Operations note"
+                    value={entry.note}
+                    onChange={(e) => change({ note: e.target.value })}
+                    hint="Describe any temporary service or operation changes."
+                  />
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setF("temporaryHours", [
+                  ...f.temporaryHours,
+                  {
+                    id: crypto.randomUUID(),
+                    start: "",
+                    end: "",
+                    closed: false,
+                    opens: "09:00",
+                    closes: "20:00",
+                    note: "",
+                  },
+                ])
+              }
+            >
+              <Plus />
+              Add temporary change
+            </Button>
           </section>
         </CardContent>
       </Card>
-    </div>
+
+      {dirty && (
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              seed({
+                ...f,
+                name: data.name,
+                address: data.address ?? "",
+                phone: data.phone ?? "",
+                website: data.website ?? "",
+                receptionMobile: data.receptionMobile ?? "",
+                upiId: data.upiId ?? "",
+                operatingHoursStart: data.operatingHoursStart,
+                operatingHoursEnd: data.operatingHoursEnd,
+                operatingHours: weeklyHours(
+                  data.operatingHoursStart,
+                  data.operatingHoursEnd,
+                  data.operatingHours,
+                ),
+                temporaryHours: data.temporaryHours ?? [],
+              })
+            }
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={update.isPending}>
+            {update.isPending ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      )}
+    </form>
   );
 }

@@ -25,7 +25,7 @@ interface AuthValue {
   user: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (identifier: string, password: string, role: Role) => Promise<Session>;
+  login: (identifier: string, password: string, role: Role, mfaCode?: string) => Promise<Session>;
   /** Adopt a session minted elsewhere (the application flow). */
   adopt: (res: LoginResponse) => void;
   logout: () => Promise<void>;
@@ -105,8 +105,8 @@ export function DoctorAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(
-    async (identifier: string, password: string, role: Role) => {
-      const res = await authApi.post<LoginResponse>("/auth/login", { identifier, password, role });
+    async (identifier: string, password: string, role: Role, mfaCode?: string) => {
+      const res = await authApi.post<LoginResponse>("/auth/login", { identifier, password, role, mfaCode });
       adopt(res);
       return res.user;
     },

@@ -1,6 +1,10 @@
+import { profileSettingsHandlers, syncLinkedClinics } from "./profile-settings";
+import { profileFaqs } from "@/pages/help-content";
 import { extraHandlers } from "./demo-extras";
 import { local as http, LocalResponse as HttpResponse } from "@/lib/local-data";
 import * as fx from "./fixtures";
+import { getActiveClinicId, setActiveClinicId } from "@/lib/api";
+import { validTemporaryHours } from "@/lib/profile-settings";
 import { ageFrom } from "@/lib/dates";
 import type {
   Diagnosis,
@@ -59,6 +63,11 @@ const invoices: Invoice[] = [...fx.invoices];
 const tickets: SupportTicket[] = fx.supportTickets.map((t) => ({ ...t }));
 const notifications = fx.notifications.map((n) => ({ ...n }));
 let clinic = { ...fx.clinic };
+const clinicProfiles = new Map([[clinic.id, clinic]]);
+const currentClinic = () => {
+  const selected = getActiveClinicId();
+  return selected ? clinicProfiles.get(selected) : undefined;
+};
 let subscription = { ...fx.subscription };
 
 const denied = (mid: string) =>
@@ -76,6 +85,7 @@ function gate(url: URL): { mid: string } | HttpResponse<any> {
 }
 
 export const handlers = [
+  ...profileSettingsHandlers,
   ...extraHandlers,
   // ---------------------------------------------------------------- auth
   http.post(`${B}/auth/login`, async ({ request }) => {
@@ -261,20 +271,30 @@ export const handlers = [
   }),
 
   // -------------------------------------------------------- clinic: profile
-  http.get(`${B}/clinic/profile`, () => HttpResponse.json(clinic)),
+  http.get(`${B}/clinic/profile`, () => currentClinic() ? HttpResponse.json(currentClinic()) : HttpResponse.json({ message: "Select a clinic with a saved profile." }, { status: 404 })),
   http.put(`${B}/clinic/profile`, async ({ request }) => {
+    const existing = currentClinic();
+    if (!existing) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
     const body = (await request.json()) as Partial<typeof clinic>;
-    clinic = { ...clinic, ...body };
+    if (body.temporaryHours && !validTemporaryHours(body.temporaryHours)) return HttpResponse.json({ message: "Invalid or overlapping temporary hours." }, { status: 400 });
+    clinic = { ...existing, ...body, id: existing.id };
+    clinicProfiles.set(clinic.id, clinic);
     const summary = fx.session.clinics.find((entry) => entry.id === clinic.id);
     if (summary) summary.name = clinic.name;
     return HttpResponse.json(clinic);
   }),
   http.post(`${B}/clinic/profile/logo`, () => {
-    clinic = { ...clinic, logoUrl: "/demo-clinic.svg" };
+    const selected = currentClinic();
+    if (!selected) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
+    clinic = { ...selected, logoUrl: "/demo-clinic.svg" };
+    clinicProfiles.set(clinic.id, clinic);
     return HttpResponse.json({ logoUrl: clinic.logoUrl });
   }),
   http.post(`${B}/clinic/profile/qr-code`, () => {
-    clinic = { ...clinic, qrUrl: "/demo-clinic.svg" };
+    const selected = currentClinic();
+    if (!selected) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
+    clinic = { ...selected, qrUrl: "/demo-clinic.svg" };
+    clinicProfiles.set(clinic.id, clinic);
     return HttpResponse.json({ qrUrl: clinic.qrUrl });
   }),
 
@@ -335,7 +355,7 @@ export const handlers = [
     if (plan) subscription = { ...subscription, plan: plan.code, planName: plan.name, seats: plan.seats, status: "active" };
     return HttpResponse.json(subscription);
   }),
-  http.get(`${B}/clinic/faqs`, () => HttpResponse.json({ faqs: fx.faqs })),
+  http.get(`${B}/clinic/faqs`, () => HttpResponse.json({ faqs: [...fx.faqs, ...profileFaqs] })),
 
   // ------------------------------------------------------------- billing
   http.get(`${B}/clinic/billing`, () => HttpResponse.json({ invoices })),
@@ -415,7 +435,10 @@ export const handlers = [
   http.post(`${A}/forgot-password`, () => HttpResponse.json({ message: "If that email is registered, a code is on its way.", devOtp: "123456" })),
   http.post(`${A}/verify-otp`, () => HttpResponse.json({ verified: true, resetToken: "mock-reset-token" })),
   http.post(`${A}/reset-password`, () => new HttpResponse(null, { status: 204 })),
-  http.get(`${B}/me`, () => (hasSession() ? HttpResponse.json({ user: fx.session }) : HttpResponse.json({ message: "Authentication required" }, { status: 401 }))),
+  http.get(`${B}/me`, () => {
+    syncLinkedClinics();
+    return hasSession() ? HttpResponse.json({ user: fx.session }) : HttpResponse.json({ message: "Authentication required" }, { status: 401 });
+  }),
 
   // ---------------------------------------------------------------- billing (doctor plans)
   http.get(`${B}/billing/plans`, () => HttpResponse.json({ plans: fx.plans })),
@@ -431,6 +454,8 @@ export const handlers = [
   http.post(`${B}/clinics`, async ({ request }) => {
     const body = (await request.json()) as { name: string; address?: string; phone?: string };
     clinic = { ...fx.clinic, ...body, id: uid("clinic") };
+    clinicProfiles.set(clinic.id, clinic);
+    setActiveClinicId(clinic.id);
     fx.session.clinics.push({ id: clinic.id, name: clinic.name, role: "owner", memberCount: 1 });
     return HttpResponse.json(clinic, { status: 201 });
   }),

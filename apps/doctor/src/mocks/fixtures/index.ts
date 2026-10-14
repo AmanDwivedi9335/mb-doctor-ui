@@ -188,7 +188,7 @@ export const dashboardStats = {
 // --- Clinic management ---
 
 export const clinic: Clinic = {
-  id: "6a1b6e79925acc278c7ab2e2",
+  id: "c1",
   name: "Mehta Medical Centre",
   address: "45 MG Road, Gachibowli Circle, Hyderabad, TS 500032",
   website: "www.mehtamedical.in",
@@ -233,8 +233,8 @@ export const staff: Staff[] = [
 ];
 
 export const plans: Plan[] = [
-  { code: "basic", name: "Basic", priceMonthly: 200, seats: 1, pro: false, features: ["Patient lookup by MID, with the patient's consent", "Diagnosis, procedures, reports and follow-ups", "Consultation history"] },
-  { code: "pro", name: "Pro", priceMonthly: 500, seats: 1, pro: true, features: ["Everything in Basic", "Clinic management: appointments, invoices, analytics", "Multiple clinics with one switch", "One front-desk account", "Invite doctors to your clinics"] },
+  { code: "basic", name: "Basic", priceMonthly: 200, priceSixMonths: 1200, priceAnnual: 2400, seats: 1, pro: false, features: ["Patient lookup by MID, with the patient's consent", "Diagnosis, procedures, reports and follow-ups", "Consultation history"] },
+  { code: "pro", name: "Pro", priceMonthly: 500, priceSixMonths: 3000, priceAnnual: 6000, seats: 1, pro: true, features: ["Everything in Basic", "Clinic management: appointments, invoices, analytics", "Multiple clinics with one switch", "One front-desk account", "Invite doctors to your clinics"] },
 ];
 
 export const subscription: Subscription = {
@@ -242,7 +242,7 @@ export const subscription: Subscription = {
   planName: "Pro",
   status: "active",
   startedAt: "2026-08-30",
-  renewsAt: "2026-09-30",
+  renewsAt: "2027-12-31",
   seats: 1,
   isPro: true,
   enforced: true,
@@ -258,7 +258,7 @@ export const subscriptionHistory: SubscriptionEvent[] = [
 export const faqs: Faq[] = [
   { id: "faq1", question: "How does a patient share records with me?", answer: "The patient grants consent from their MediBank app using your clinic MID. Once granted, their records appear in the patient workspace." },
   { id: "faq2", question: "What is a MID?", answer: "A MediBank ID: a unique identifier every patient has. Type it on the Find patient screen to open their record." },
-  { id: "faq3", question: "Can I add another doctor to my clinic?", answer: "Yes, under Settings > Doctors, if your plan has spare seats. The Pro plan includes 3 seats." },
+  { id: "faq3", question: "Can I add another doctor to my clinic?", answer: "The principal doctor can review join requests or invite a doctor under Clinic settings > Doctors. A doctor can also request to join from Profile > Linked Clinics." },
   { id: "faq4", question: "How do I verify a lab report?", answer: "Open the patient's Reports tab and use Verify on a pending report. Verified reports show your name against them." },
 ];
 

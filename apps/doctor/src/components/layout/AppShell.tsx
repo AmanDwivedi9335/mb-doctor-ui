@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
+import { SessionActivity } from "./SessionActivity";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -9,6 +10,7 @@ export function AppShell() {
 
   return (
     <div className="portal-shell h-screen w-full md:p-4">
+      <SessionActivity />
       <div className="flex h-full gap-4 overflow-hidden">
         {/* Desktop rail */}
         <div className="hidden md:block">

@@ -91,7 +91,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const showConsult = !isDesk;
   const showClinic = isDesk || isPro;
   // A basic doctor invited into a clinic still gets their own queue there.
-  const memberQueue = !isDesk && !isPro && !!activeClinicId;
+  const memberQueue = false;
 
   const inSettings = pathname.startsWith("/settings/clinic") || pathname.startsWith("/settings/doctors") || pathname.startsWith("/settings/staff");
 

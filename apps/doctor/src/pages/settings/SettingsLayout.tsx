@@ -1,23 +1,19 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/DoctorAuthContext";
 import { cn } from "@/lib/utils";
 
 /**
- * Tabs by login: everyone gets Account & security; a basic doctor then only
- * Subscription and Contact us (Clinic Management is Pro); a front desk sees the
- * clinic tabs but not the plan.
+ * Individual account tabs stay consistent on every route. Clinic management
+ * remains available through the sidebar; front desk logins retain clinic tabs.
  */
 export function SettingsLayout() {
   const { user } = useAuth();
-  const { pathname } = useLocation();
   const isDesk = user?.role === "receptionist";
-  const settingsPath = pathname.replace(/\/$/, "");
-  const clinicTabs = !["/settings/account", "/settings/clinic", "/settings/subscription", "/settings/contact"].includes(settingsPath) && (isDesk || !!user?.plan?.isPro);
+  const clinicTabs = isDesk;
 
   const tabs = [
     { to: "/settings/account", label: "Account & security" },
     ...(clinicTabs ? [{ to: "/settings/clinic", label: "Clinic" }, { to: "/settings/doctors", label: "Doctors" }] : []),
-    ...(clinicTabs && !isDesk ? [{ to: "/settings/staff", label: "Front desk" }] : []),
     ...(!isDesk ? [{ to: "/settings/subscription", label: "Subscription" }] : []),
     { to: "/settings/contact", label: "Contact us" },
   ];

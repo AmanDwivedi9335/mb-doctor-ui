@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { TextField } from "@/components/form/FormKit";
 import { toast } from "@/components/ui/sonner";
+import { AccountPreferences } from "./AccountPreferences";
 import { Logo } from "@/components/Logo";
 
 const errorText = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -31,11 +32,11 @@ function Row({ icon: Icon, label, sub, children }: { icon: typeof Mail; label: s
 /**
  * Settings > Account & security. The doctor-portal version of the patient
  * app's account screens: sign-in details, password, security questions,
- * closing the account. A front desk gets its password and Log out only: its
+ * closing the account. A front desk can manage its password and preferences: its
  * other details belong to the doctor who created it.
  */
 export function AccountSecurity() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isDoctor = user?.role === "doctor";
   const { data: questions } = useSecurityQuestions(isDoctor);
@@ -89,23 +90,12 @@ export function AccountSecurity() {
         </CardContent>
       </Card>
 
+      <AccountPreferences />
       <Card>
         <CardHeader>
           <CardTitle className="text-[15px]">Account</CardTitle>
         </CardHeader>
         <CardContent className="py-0">
-          <Row icon={LogOut} label="Log out" sub="End this session on this device.">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                await logout();
-                navigate("/login");
-              }}
-            >
-              Log out
-            </Button>
-          </Row>
           {isDoctor ? (
             <Row icon={Trash2} label="Close account" sub="Closes 30 days after you ask. Sign in before then to keep it.">
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDialog("close")}>
