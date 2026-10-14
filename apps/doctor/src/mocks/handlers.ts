@@ -1,4 +1,5 @@
-import { profileSettingsHandlers, syncLinkedClinics } from "./profile-settings";
+import { hasDemoSession, adoptDemoSession } from "@/lib/demo-storage";
+import { profileSettingsHandlers, syncLinkedClinics, savedClinic, storeClinic } from "./profile-settings";
 import { profileFaqs } from "@/pages/help-content";
 import { extraHandlers } from "./demo-extras";
 import { local as http, LocalResponse as HttpResponse } from "@/lib/local-data";
@@ -31,14 +32,14 @@ const A = "*/api/v1/auth";
 const SESSION_KEY = "doctor-mock-session";
 const hasSession = () => {
   try {
-    return sessionStorage.getItem(SESSION_KEY) !== "0";
+    return hasDemoSession();
   } catch {
     return true;
   }
 };
 const setSession = (on: boolean) => {
   try {
-    on ? sessionStorage.setItem(SESSION_KEY, "1") : sessionStorage.setItem(SESSION_KEY, "0");
+    on ? adoptDemoSession() : sessionStorage.setItem(SESSION_KEY, "0");
   } catch {
     /* private mode: session simply will not persist across reload */
   }
@@ -66,7 +67,7 @@ let clinic = { ...fx.clinic };
 const clinicProfiles = new Map([[clinic.id, clinic]]);
 const currentClinic = () => {
   const selected = getActiveClinicId();
-  return selected ? clinicProfiles.get(selected) : undefined;
+  return selected ? savedClinic(selected) ?? clinicProfiles.get(selected) : undefined;
 };
 let subscription = { ...fx.subscription };
 
@@ -275,10 +276,12 @@ export const handlers = [
   http.put(`${B}/clinic/profile`, async ({ request }) => {
     const existing = currentClinic();
     if (!existing) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
+    if (fx.session.role !== "receptionist" && !fx.session.clinics.some((c) => c.id === existing.id && c.role === "owner")) return HttpResponse.json({ message: "Only the principal doctor or front desk can edit this clinic." }, { status: 403 });
     const body = (await request.json()) as Partial<typeof clinic>;
     if (body.temporaryHours && !validTemporaryHours(body.temporaryHours)) return HttpResponse.json({ message: "Invalid or overlapping temporary hours." }, { status: 400 });
     clinic = { ...existing, ...body, id: existing.id };
     clinicProfiles.set(clinic.id, clinic);
+    storeClinic(clinic);
     const summary = fx.session.clinics.find((entry) => entry.id === clinic.id);
     if (summary) summary.name = clinic.name;
     return HttpResponse.json(clinic);
@@ -288,6 +291,7 @@ export const handlers = [
     if (!selected) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
     clinic = { ...selected, logoUrl: "/demo-clinic.svg" };
     clinicProfiles.set(clinic.id, clinic);
+    storeClinic(clinic);
     return HttpResponse.json({ logoUrl: clinic.logoUrl });
   }),
   http.post(`${B}/clinic/profile/qr-code`, () => {
@@ -295,6 +299,7 @@ export const handlers = [
     if (!selected) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
     clinic = { ...selected, qrUrl: "/demo-clinic.svg" };
     clinicProfiles.set(clinic.id, clinic);
+    storeClinic(clinic);
     return HttpResponse.json({ qrUrl: clinic.qrUrl });
   }),
 
@@ -455,6 +460,7 @@ export const handlers = [
     const body = (await request.json()) as { name: string; address?: string; phone?: string };
     clinic = { ...fx.clinic, ...body, id: uid("clinic") };
     clinicProfiles.set(clinic.id, clinic);
+    storeClinic(clinic);
     setActiveClinicId(clinic.id);
     fx.session.clinics.push({ id: clinic.id, name: clinic.name, role: "owner", memberCount: 1 });
     return HttpResponse.json(clinic, { status: 201 });

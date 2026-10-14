@@ -61,6 +61,7 @@ export interface Session {
 }
 
 export interface DoctorUser {
+  referredBy?: string;
   preferredName?: string;
   dateOfBirth?: string;
   mobile?: string;

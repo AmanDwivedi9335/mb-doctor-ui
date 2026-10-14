@@ -23,6 +23,7 @@ export const tutorials = [
       "As the principal doctor, open Linked Clinics or Clinic settings → Doctors.",
       "Review the doctor and clinic listed in Clinic link requests.",
       "Choose Approve to link the doctor or Reject to decline. Other doctors cannot approve the request.",
+      "After approval, open Clinic settings → Doctors and expand Working hours to assign that doctor’s weekly schedule.",
     ],
   },
   {

@@ -1,4 +1,5 @@
 import { local as http, LocalResponse as R } from "@/lib/local-data";
+import { adoptDemoSession } from "@/lib/demo-storage";
 import * as fx from "./fixtures";
 import type { Appointment, FrontDesk } from "@/types";
 const B = "/api/v1/doctor";
@@ -38,7 +39,7 @@ export const extraHandlers = [
     const { password: _password, code: _code, ...details } = body;
     Object.assign(fx.doctor, details);
     Object.assign(fx.session, { name: details.name, email: details.email, mobile: details.mobile, username: details.username, avatarUrl: details.avatarUrl, specialization: details.specialization });
-    sessionStorage.setItem("doctor-mock-session", "1");
+    adoptDemoSession();
     return R.json({ accessToken: "demo-token", refreshToken: "demo-session", user: fx.session });
   }),
   http.get(`${A}/onboarding`, () => R.json({ ...fx.doctor, qualification: fx.doctor.education?.map((entry) => entry.qualification).join(", ") ?? "", registrationNo: fx.doctor.registrationIds?.join(", ") ?? "", documents: { degreeCertificate: false, registrationCertificate: false, govIdProof: false }, reviewStatus: fx.session.reviewStatus, reviewNote: fx.session.reviewNote })),

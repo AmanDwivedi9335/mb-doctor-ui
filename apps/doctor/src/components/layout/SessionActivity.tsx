@@ -1,5 +1,11 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  DEMO_STORAGE_PREFIX,
+  SESSION_GENERATION_KEY,
+  hasDemoSession,
+} from "@/lib/demo-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/DoctorAuthContext";
 import type { AccountPreferencesData } from "@/lib/profile-settings";
@@ -7,7 +13,8 @@ import { toast } from "@/components/ui/sonner";
 
 /** Check elapsed time as well as timers, so background tabs expire on return. */
 export function SessionActivity() {
-  const { logout } = useAuth();
+  const { logout, refreshSession } = useAuth();
+  const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["account-preferences"],
     queryFn: () => authApi.get<AccountPreferencesData>("/auth/me/preferences"),
@@ -24,6 +31,10 @@ export function SessionActivity() {
       }
     };
     const check = () => {
+      if (!hasDemoSession()) {
+        void logout();
+        return;
+      }
       if (Date.now() - lastActivity >= data.inactivityMinutes * 60_000)
         expire();
     };
@@ -41,7 +52,12 @@ export function SessionActivity() {
     document.addEventListener("visibilitychange", check);
     const timer = window.setInterval(check, 1000);
     const revoked = (event: StorageEvent) => {
-      if (event.key === "medibank-session-revoked") void logout();
+      if (event.key === SESSION_GENERATION_KEY && !hasDemoSession())
+        void logout();
+      else if (event.key?.startsWith(DEMO_STORAGE_PREFIX)) {
+        void refreshSession();
+        void qc.invalidateQueries();
+      }
     };
     window.addEventListener("storage", revoked);
     return () => {
@@ -52,6 +68,6 @@ export function SessionActivity() {
       document.removeEventListener("visibilitychange", check);
       window.removeEventListener("storage", revoked);
     };
-  }, [data?.inactivityMinutes, logout]);
+  }, [data?.inactivityMinutes, logout, refreshSession, qc]);
   return null;
 }

@@ -218,10 +218,11 @@ export function useCreateWalkIn() {
   });
 }
 
-export function useAppointments(date?: string) {
+export function useAppointments(date?: string, enabled = true) {
   return useQuery({
     queryKey: ["doctor", "appointments", date ?? "today"],
     queryFn: () => api.get<{ appointments: Appointment[] }>(`/appointments${date ? `?date=${date}` : ""}`),
+    enabled,
   });
 }
 

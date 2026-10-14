@@ -1,15 +1,27 @@
 import { ClinicApprovalQueue } from "@/pages/LinkedClinics";
+import { DoctorWorkingHours } from "@/components/clinical/DoctorWorkingHours";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Trash2, GraduationCap } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
-import { useClinicDoctors, useInviteDoctor, useDeleteDoctor } from "@/hooks/use-api";
+import {
+  useClinicDoctors,
+  useInviteDoctor,
+  useDeleteDoctor,
+} from "@/hooks/use-api";
 import { ApiError } from "@myanodex/shared/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { TextField } from "@/components/form/FormKit";
 import { toast } from "@/components/ui/sonner";
 
@@ -33,7 +45,10 @@ export function Doctors() {
     return (
       <div className="rounded-lg border border-dashed bg-card px-6 py-10 text-center text-sm text-muted-foreground">
         Select a clinic from the top bar, or{" "}
-        <Link to="/settings/clinic" className="font-medium text-primary hover:underline">
+        <Link
+          to="/settings/clinic"
+          className="font-medium text-primary hover:underline"
+        >
           create one
         </Link>{" "}
         first.
@@ -43,21 +58,30 @@ export function Doctors() {
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (!identifier.trim()) return toast.error("Enter a username, email or Doctor ID.");
+    if (!identifier.trim())
+      return toast.error("Enter a username, email or Doctor ID.");
     try {
       const r = await invite.mutateAsync(identifier.trim());
-      toast.success(r.status === "pending" ? "Invite sent. It shows here once they accept." : "Already a member.");
+      toast.success(
+        r.status === "pending"
+          ? "Invite sent. It shows here once they accept."
+          : "Already a member.",
+      );
       setIdentifier("");
       setOpen(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not send the invite.");
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not send the invite.",
+      );
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Doctors consulting at {clinic?.name ?? "this clinic"}.</p>
+        <p className="text-sm text-muted-foreground">
+          Doctors consulting at {clinic?.name ?? "this clinic"}.
+        </p>
         {canManage && (
           <Button onClick={() => setOpen(true)}>
             <Plus /> Invite doctor
@@ -74,7 +98,9 @@ export function Doctors() {
               <CardHeader className="flex-row items-start justify-between space-y-0">
                 <div>
                   <CardTitle className="text-[15px]">{d.name}</CardTitle>
-                  <div className="text-[13px] text-muted-foreground">{d.specialization || "Doctor"}</div>
+                  <div className="text-[13px] text-muted-foreground">
+                    {d.specialization || "Doctor"}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {d.role === "owner" ? (
@@ -91,7 +117,8 @@ export function Doctors() {
                       aria-label="Remove doctor"
                       onClick={() =>
                         remove.mutate(d.id, {
-                          onSuccess: () => toast.success("Doctor removed from the clinic."),
+                          onSuccess: () =>
+                            toast.success("Doctor removed from the clinic."),
                           onError: () => toast.error("Could not remove."),
                         })
                       }
@@ -103,17 +130,36 @@ export function Doctors() {
               </CardHeader>
               <CardContent className="flex flex-col gap-1 text-[13px] text-muted-foreground">
                 <div>{d.email}</div>
-                {d.username && <div>@{d.username}{d.doctorNo ? ` · ${d.doctorNo}` : ""}</div>}
+                {d.username && (
+                  <div>
+                    @{d.username}
+                    {d.doctorNo ? ` · ${d.doctorNo}` : ""}
+                  </div>
+                )}
                 {d.phone && <div>{d.phone}</div>}
                 {d.registrationNo && <div>Reg: {d.registrationNo}</div>}
                 {d.qualifications.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {d.qualifications.map((q) => (
-                      <span key={q.id} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-secondary-foreground">
-                        <GraduationCap className="size-3" /> {q.degree}{q.year ? ` · ${q.year}` : ""}
+                      <span
+                        key={q.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-secondary-foreground"
+                      >
+                        <GraduationCap className="size-3" /> {q.degree}
+                        {q.year ? ` · ${q.year}` : ""}
                       </span>
                     ))}
                   </div>
+                )}
+                {d.status !== "pending" && (
+                  <DoctorWorkingHours
+                    clinicId={activeClinicId}
+                    doctorId={d.id}
+                    doctorName={d.name}
+                    canEdit={
+                      user?.role === "doctor" && clinic?.role === "owner"
+                    }
+                  />
                 )}
               </CardContent>
             </Card>
@@ -138,9 +184,13 @@ export function Doctors() {
             />
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
               </DialogClose>
-              <Button type="submit" disabled={invite.isPending}>{invite.isPending ? "Sending..." : "Send invite"}</Button>
+              <Button type="submit" disabled={invite.isPending}>
+                {invite.isPending ? "Sending..." : "Send invite"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

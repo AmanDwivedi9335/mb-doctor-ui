@@ -1,5 +1,23 @@
 import { addMonths } from "date-fns";
-import { local as http, LocalResponse as R } from "@/lib/local-data";
+import { getActiveClinicId } from "@/lib/api";
+import {
+  readDemoState,
+  writeDemoState,
+  adoptDemoSession,
+  revokeDemoSessions,
+} from "@/lib/demo-storage";
+import type {
+  Clinic,
+  ClinicDoctor,
+  ClinicOperatingDay,
+  DoctorUser,
+  Session,
+} from "@/types";
+import {
+  local as http,
+  LocalResponse as R,
+  registerLocalPersistence,
+} from "@/lib/local-data";
 import * as fx from "./fixtures";
 import type {
   LinkedClinic,
@@ -49,10 +67,155 @@ let requests: ClinicRequest[] = [
     doctorName: "Dr. Kavita Rao",
   },
 ];
+const baseSession = structuredClone(fx.session);
+const accountProfiles: Record<string, DoctorUser> = {
+  [fx.doctor.id]: structuredClone(fx.doctor),
+  "principal-city-care": {
+    ...fx.doctor,
+    id: "principal-city-care",
+    name: "Dr. Priya Shah",
+    email: "dr.shah@test.com",
+    clinicName: "City Care Clinic",
+  },
+  "principal-community": {
+    ...fx.doctor,
+    id: "principal-community",
+    name: "Dr. Ravi Kumar",
+    email: "dr.kumar@test.com",
+    clinicName: "Community Health Centre",
+  },
+  "doctor-demo-applicant": {
+    ...fx.doctor,
+    id: "doctor-demo-applicant",
+    name: "Dr. Kavita Rao",
+    email: "dr.rao@test.com",
+  },
+};
+for (const [clinicId, doctorId] of [
+  ["c2", "principal-city-care"],
+  ["c3", "principal-community"],
+]) {
+  memberships.push({
+    ...directory.find((c) => c.id === clinicId)!,
+    doctorId,
+    role: "owner",
+    status: "approved",
+    hours: [],
+  });
+}
+const rows: Record<string, ClinicDoctor[]> = {
+  c1: fx.clinicDoctors.map((d, i) => ({
+    ...d,
+    id: i === 0 ? fx.doctor.id : d.id,
+    role: i === 0 ? "owner" : "member",
+    status: "accepted",
+  })),
+  c2: [],
+  c3: [],
+};
+for (const d of rows.c1.filter((d) => d.role !== "owner"))
+  memberships.push({
+    ...directory[0],
+    doctorId: d.id,
+    role: "member",
+    status: "approved",
+    hours: [],
+  });
+const savedClinicProfiles: Record<string, Clinic> = Object.fromEntries(
+  directory.map((c) => [
+    c.id,
+    {
+      ...fx.clinic,
+      id: c.id,
+      name: c.name,
+      address: c.address,
+      qrUrl: c.id === fx.clinic.id ? fx.clinic.qrUrl : null,
+      upiId: c.id === fx.clinic.id ? fx.clinic.upiId : "",
+    },
+  ]),
+);
+const toDoctorRow = (
+  membership: LinkedClinic & { doctorId: string },
+): ClinicDoctor => {
+  const p = accountProfiles[membership.doctorId];
+  return {
+    id: membership.doctorId,
+    name: p?.name ?? "Doctor",
+    email: p?.email ?? "",
+    specialization: p?.specializations?.join(", ") ?? p?.specialization ?? "",
+    role: membership.role,
+    status: "accepted",
+    active: true,
+    qualifications: [],
+  };
+};
+function syncDoctorRows() {
+  for (const m of memberships.filter((m) => m.status === "approved")) {
+    const list = (rows[m.id] ??= []);
+    const existing = list.find((d) => d.id === m.doctorId);
+    if (existing) {
+      existing.role = m.role;
+      existing.status = "accepted";
+      if (accountProfiles[m.doctorId])
+        Object.assign(existing, {
+          name: accountProfiles[m.doctorId].name,
+          email: accountProfiles[m.doctorId].email,
+          specialization: accountProfiles[m.doctorId].specialization ?? "",
+        });
+    } else list.push(toDoctorRow(m));
+  }
+}
+function selectDemoAccount(id: string, role: Session["role"] = "doctor") {
+  const profile = accountProfiles[id];
+  if (!profile) return;
+  Object.keys(fx.doctor).forEach(
+    (key) => delete (fx.doctor as unknown as Record<string, unknown>)[key],
+  );
+  Object.assign(fx.doctor, profile);
+  preferences = preferencesByAccount[id] ?? {
+    mfaEnabled: false,
+    inactivityMinutes: 30,
+    language: "en",
+    referralLink: "",
+  };
+  subscription = subscriptionsByAccount[id] ?? { ...fx.subscription };
+  Object.assign(fx.session, {
+    ...baseSession,
+    id,
+    doctorId: id,
+    name: profile.name,
+    email: profile.email,
+    specialization: profile.specialization ?? null,
+    avatarUrl: profile.avatarUrl ?? null,
+    role,
+    doctorNo: id === baseSession.id ? baseSession.doctorNo : `MB-DR-${id}`,
+    plan: {
+      ...baseSession.plan!,
+      code: subscription.plan,
+      name: subscription.planName,
+      isPro: !!subscription.isPro,
+      endsAt: subscription.renewsAt,
+      active: subscription.status === "active",
+    },
+    clinics: [],
+  });
+  syncLinkedClinics();
+  sessionStorage.setItem("medibank-demo:account", id);
+  sessionStorage.setItem("medibank-demo:role", role);
+}
+let restoredAccount = false;
 const owns = (clinicId: string) =>
   fx.session.role === "doctor" &&
   fx.session.clinics.some((c) => c.id === clinicId && c.role === "owner");
 export function syncLinkedClinics() {
+  fx.session.clinics = fx.session.clinics.filter((c) =>
+    memberships.some(
+      (m) =>
+        m.id === c.id &&
+        m.doctorId === fx.session.id &&
+        m.status === "approved",
+    ),
+  );
   for (const membership of memberships.filter(
     (c) => c.doctorId === fx.session.id && c.status === "approved",
   )) {
@@ -65,17 +228,27 @@ export function syncLinkedClinics() {
       });
   }
 }
-const preferences: AccountPreferencesData = {
+let preferences: AccountPreferencesData = {
   mfaEnabled: false,
   inactivityMinutes: 30,
   language: "en",
   referralLink: "https://medibank.in/apply?ref=MB-DR-000001",
 };
+const preferencesByAccount: Record<string, AccountPreferencesData> = {};
+function accountPreferences() {
+  const origin =
+    typeof location === "undefined" ? "http://demo.local" : location.origin;
+  return {
+    ...preferences,
+    referralLink: `${origin}/apply?ref=${encodeURIComponent(fx.session.doctorNo ?? fx.session.id)}`,
+  };
+}
 let mfaChallenge = false;
 // Orders are session-local demo payments. Durations and receipts are retained per order.
 const orders = new Map<
   string,
   {
+    doctorId: string;
     status: "success";
     entitlement: {
       active: boolean;
@@ -86,15 +259,32 @@ const orders = new Map<
   }
 >();
 let subscription = { ...fx.subscription };
+const subscriptionsByAccount: Record<string, typeof subscription> = {};
+const paymentHistoryByAccount: Record<string, typeof fx.subscriptionHistory> = {
+  [baseSession.id]: structuredClone(fx.subscriptionHistory),
+};
 export const profileSettingsHandlers = [
   http.post(`${A}/login`, async ({ request }) => {
     const body = await request.json();
-    if (preferences.mfaEnabled && body.mfaCode !== "123456")
+    const requested = Object.values(accountProfiles).find(
+      (p) =>
+        p.email.toLowerCase() === String(body.identifier ?? "").toLowerCase(),
+    );
+    // Named demo accounts make both sides of the approval flow reviewable.
+    const requestedPreferences = requested
+      ? preferencesByAccount[requested.id]
+      : preferences;
+    if (requestedPreferences?.mfaEnabled && body.mfaCode !== "123456")
       return R.json(
         { message: "Enter your MFA code. Demo code: 123456." },
         { status: 428 },
       );
-    sessionStorage.setItem("doctor-mock-session", "1");
+    if (requested)
+      selectDemoAccount(
+        requested.id,
+        body.role === "receptionist" ? "receptionist" : "doctor",
+      );
+    adoptDemoSession();
     fx.session.role = body.role === "receptionist" ? "receptionist" : "doctor";
     return R.json({
       accessToken: "demo-token",
@@ -103,6 +293,104 @@ export const profileSettingsHandlers = [
     });
   }),
   http.get(`${B}/clinic-directory`, () => R.json({ clinics: directory })),
+  http.get(`${B}/clinic/doctors`, () => {
+    syncDoctorRows();
+    return R.json({ doctors: rows[getActiveClinicId() ?? ""] ?? [] });
+  }),
+  http.get(`${B}/clinics/:clinicId/doctors/:doctorId/hours`, ({ params }) => {
+    const m = memberships.find(
+      (m) =>
+        m.id === params.clinicId &&
+        m.doctorId === params.doctorId &&
+        m.status === "approved",
+    );
+    if (!m)
+      return R.json(
+        { message: "Approved membership not found." },
+        { status: 404 },
+      );
+    if (
+      params.doctorId !== fx.session.id &&
+      !owns(params.clinicId) &&
+      fx.session.role !== "receptionist"
+    )
+      return R.json(
+        { message: "You cannot view this schedule." },
+        { status: 403 },
+      );
+    return R.json({ hours: m.hours });
+  }),
+  http.put(
+    `${B}/clinics/:clinicId/doctors/:doctorId/hours`,
+    async ({ params, request }) => {
+      if (!owns(params.clinicId))
+        return R.json(
+          { message: "Only the principal doctor can assign working hours." },
+          { status: 403 },
+        );
+      const m = memberships.find(
+        (m) =>
+          m.id === params.clinicId &&
+          m.doctorId === params.doctorId &&
+          m.status === "approved",
+      );
+      if (!m)
+        return R.json(
+          { message: "Approved membership not found." },
+          { status: 404 },
+        );
+      const { hours } = await request.json();
+      const days = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ];
+      if (
+        !Array.isArray(hours) ||
+        new Set(hours.map((h) => h.day)).size !== hours.length ||
+        hours.some(
+          (h) =>
+            !days.includes(h.day) ||
+            typeof h.closed !== "boolean" ||
+            (!h.closed &&
+              (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h.opens) ||
+                !/^([01]\d|2[0-3]):[0-5]\d$/.test(h.closes) ||
+                h.opens >= h.closes)),
+        )
+      )
+        return R.json(
+          { message: "Provide a valid weekly working schedule." },
+          { status: 400 },
+        );
+      m.hours = hours as ClinicOperatingDay[];
+      return R.json({ hours: m.hours });
+    },
+  ),
+  http.delete(`${B}/clinic/doctors/:id`, ({ params }) => {
+    const clinicId = getActiveClinicId();
+    if (!clinicId || !owns(clinicId))
+      return R.json(
+        { message: "Only the principal doctor can remove a member." },
+        { status: 403 },
+      );
+    const index = memberships.findIndex(
+      (m) => m.id === clinicId && m.doctorId === params.id,
+    );
+    if (index < 0)
+      return R.json({ message: "Member not found." }, { status: 404 });
+    if (memberships[index].role === "owner")
+      return R.json(
+        { message: "The principal doctor cannot be removed." },
+        { status: 409 },
+      );
+    memberships.splice(index, 1);
+    rows[clinicId] = (rows[clinicId] ?? []).filter((d) => d.id !== params.id);
+    return R.json({ removed: true });
+  }),
   http.get(`${B}/me/linked-clinics`, () => {
     syncLinkedClinics();
     for (const clinic of fx.session.clinics) {
@@ -171,6 +459,9 @@ export const profileSettingsHandlers = [
         { message: "Transfer ownership before leaving your clinic." },
         { status: 409 },
       );
+    rows[params.clinicId] = (rows[params.clinicId] ?? []).filter(
+      (d) => d.id !== fx.session.id,
+    );
     memberships.splice(index, 1);
     requests = requests.filter(
       (r) => r.clinicId !== params.clinicId || r.doctorId !== fx.session.id,
@@ -221,10 +512,13 @@ export const profileSettingsHandlers = [
       const index = memberships.indexOf(membership!);
       if (index >= 0) memberships.splice(index, 1);
     }
+    syncDoctorRows();
     requests = requests.filter((r) => r.id !== item.id);
     return R.json({ status: params.decision });
   }),
-  http.get(`${A}/me/preferences`, () => R.json(preferences)),
+  http.get(`${A}/me/preferences`, () => {
+    return R.json(accountPreferences());
+  }),
   http.put(`${A}/me/preferences`, async ({ request }) => {
     const body = await request.json();
     if (
@@ -234,7 +528,7 @@ export const profileSettingsHandlers = [
       return R.json({ message: "Unsupported preference." }, { status: 400 });
     preferences.inactivityMinutes = body.inactivityMinutes;
     preferences.language = body.language;
-    return R.json(preferences);
+    return R.json(accountPreferences());
   }),
   http.post(`${A}/me/mfa/send-code`, () => {
     mfaChallenge = true;
@@ -253,15 +547,16 @@ export const profileSettingsHandlers = [
       );
     preferences.mfaEnabled = body.enabled;
     mfaChallenge = false;
-    return R.json(preferences);
+    return R.json(accountPreferences());
   }),
   http.post(`${A}/me/logout-everywhere`, () => {
-    sessionStorage.setItem("doctor-mock-session", "0");
-    if (typeof localStorage !== "undefined")
-      localStorage.setItem("medibank-session-revoked", crypto.randomUUID());
+    revokeDemoSessions();
     return R.json({ revoked: true });
   }),
   http.get(`${B}/billing/me`, () => R.json(subscription)),
+  http.get(`${B}/billing/history`, () =>
+    R.json({ history: paymentHistoryByAccount[fx.session.id] ?? [] }),
+  ),
   http.post(`${B}/billing/checkout`, async ({ request }) => {
     const { plan: code, months } = await request.json();
     const plan = fx.plans.find((p) => p.code === code);
@@ -305,6 +600,7 @@ export const profileSettingsHandlers = [
     };
     const ref = crypto.randomUUID();
     orders.set(ref, {
+      doctorId: fx.session.id,
       status: "success",
       entitlement: {
         active: true,
@@ -313,7 +609,7 @@ export const profileSettingsHandlers = [
         endsAt: end,
       },
     });
-    fx.subscriptionHistory.unshift({
+    (paymentHistoryByAccount[fx.session.id] ??= []).unshift({
       id: ref,
       date: now.toISOString(),
       description: `${plan.name} — ${months === 6 ? "6 months" : "Annual"} (demo payment)`,
@@ -322,8 +618,127 @@ export const profileSettingsHandlers = [
     return R.json({ paymentUrl: `/payment?ref=${ref}`, merchantTxnNo: ref });
   }),
   http.get(`${B}/billing/orders/:ref`, ({ params }) =>
-    orders.has(params.ref)
+    orders.get(params.ref)?.doctorId === fx.session.id
       ? R.json(orders.get(params.ref))
       : R.json({ message: "Order not found." }, { status: 404 }),
   ),
 ];
+
+type SharedState = {
+  directory: typeof directory;
+  memberships: typeof memberships;
+  requests: typeof requests;
+  rows: typeof rows;
+  profiles: typeof accountProfiles;
+  clinics: typeof savedClinicProfiles;
+  preferences: typeof preferencesByAccount;
+  subscription: typeof subscriptionsByAccount;
+  orders: [string, ReturnType<typeof orders.get>][];
+  history: typeof paymentHistoryByAccount;
+};
+const snapshot = (): SharedState => ({
+  directory,
+  memberships,
+  requests,
+  rows,
+  profiles: accountProfiles,
+  clinics: savedClinicProfiles,
+  preferences: preferencesByAccount,
+  subscription: subscriptionsByAccount,
+  orders: [...orders],
+  history: paymentHistoryByAccount,
+});
+registerLocalPersistence({
+  load: () => {
+    const saved = readDemoState<SharedState>("profile-settings", snapshot());
+    directory.splice(0, directory.length, ...saved.directory);
+    memberships.splice(0, memberships.length, ...saved.memberships);
+    requests = saved.requests;
+    Object.assign(rows, saved.rows);
+    Object.assign(accountProfiles, saved.profiles);
+    Object.assign(savedClinicProfiles, saved.clinics);
+    const profile = accountProfiles[fx.session.id];
+    if (profile) {
+      Object.assign(fx.doctor, profile);
+      Object.assign(fx.session, {
+        name: profile.name,
+        email: profile.email,
+        specialization: profile.specialization ?? null,
+        avatarUrl: profile.avatarUrl ?? null,
+        mobile: profile.mobile ?? null,
+      });
+    }
+    Object.assign(preferencesByAccount, saved.preferences);
+    Object.assign(subscriptionsByAccount, saved.subscription);
+    preferences = preferencesByAccount[fx.session.id] ?? preferences;
+    subscription = subscriptionsByAccount[fx.session.id] ?? subscription;
+    if (subscriptionsByAccount[fx.session.id])
+      fx.session.plan = {
+        ...fx.session.plan!,
+        code: subscription.plan,
+        name: subscription.planName,
+        isPro: !!subscription.isPro,
+        active: subscription.status === "active",
+        endsAt: subscription.renewsAt,
+      };
+    orders.clear();
+    saved.orders.forEach(([key, order]) => {
+      if (order) orders.set(key, order);
+    });
+    Object.assign(paymentHistoryByAccount, saved.history);
+    if (!restoredAccount) {
+      restoredAccount = true;
+      const account =
+        typeof sessionStorage === "undefined"
+          ? null
+          : sessionStorage.getItem("medibank-demo:account");
+      const role =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("medibank-demo:role") === "receptionist"
+          ? "receptionist"
+          : "doctor";
+      selectDemoAccount(account ?? baseSession.id, role);
+    }
+  },
+  save: () => {
+    accountProfiles[fx.session.id] = structuredClone(fx.doctor);
+    preferencesByAccount[fx.session.id] = structuredClone(preferences);
+    subscriptionsByAccount[fx.session.id] = structuredClone(subscription);
+    writeDemoState("profile-settings", snapshot());
+  },
+});
+export function savedClinic(id: string) {
+  return savedClinicProfiles[id];
+}
+export function storeClinic(clinic: Clinic) {
+  savedClinicProfiles[clinic.id] = clinic;
+  const entry = directory.find((c) => c.id === clinic.id);
+  if (entry)
+    Object.assign(entry, { name: clinic.name, address: clinic.address });
+  else
+    directory.push({
+      id: clinic.id,
+      name: clinic.name,
+      address: clinic.address,
+      principal: fx.session.name,
+    });
+  memberships
+    .filter((m) => m.id === clinic.id)
+    .forEach((m) => {
+      m.name = clinic.name;
+      m.address = clinic.address;
+    });
+  if (
+    !memberships.some((m) => m.id === clinic.id && m.doctorId === fx.session.id)
+  )
+    memberships.push({
+      id: clinic.id,
+      name: clinic.name,
+      address: clinic.address,
+      principal: fx.session.name,
+      doctorId: fx.session.id,
+      role: "owner",
+      status: "approved",
+      hours: [],
+    });
+}

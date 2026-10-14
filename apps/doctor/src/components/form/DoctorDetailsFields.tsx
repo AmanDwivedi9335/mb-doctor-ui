@@ -346,6 +346,10 @@ export function DoctorDetailsFields({
                   key={key}
                   label={label}
                   value={entry[key]}
+                  type={key === "year" ? "number" : "text"}
+                  min={key === "year" ? 1900 : undefined}
+                  max={key === "year" ? new Date().getFullYear() : undefined}
+                  step={key === "year" ? 1 : undefined}
                   onChange={(e) =>
                     set(
                       "education",
