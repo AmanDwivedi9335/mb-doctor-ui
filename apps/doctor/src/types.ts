@@ -280,6 +280,13 @@ export interface ClinicOperatingDay {
   closed: boolean;
 }
 
+export interface ClinicNotice {
+  id: string;
+  start: string;
+  end: string;
+  note: string;
+}
+
 export interface Clinic {
   id: string;
   name: string;
@@ -292,6 +299,7 @@ export interface Clinic {
   operatingHoursStart: string;
   operatingHoursEnd: string;
   operatingHours?: ClinicOperatingDay[];
+  notices?: ClinicNotice[];
   temporaryHours?: { id: string; start: string; end: string; closed: boolean; opens: string; closes: string; note: string }[];
   logoUrl?: string | null;
   qrUrl?: string | null;
@@ -305,6 +313,7 @@ export interface Qualification {
 }
 
 export interface ClinicDoctor {
+  notices?: ClinicNotice[];
   id: string;
   name: string;
   email: string;

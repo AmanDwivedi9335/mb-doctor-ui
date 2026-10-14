@@ -36,6 +36,15 @@ export const tutorials = [
     ],
   },
   {
+    title: "Publish a clinic notice",
+    steps: [
+      "Select your clinic and open My Clinic Profile → Opening hours → Clinic noticeboard.",
+      "Choose Add notice, select the start and end dates, and write your message.",
+      "Save changes. The message appears in clinic and doctor listings during that date range, including both dates.",
+      "Edit or remove the notice here when needed. A notice does not change clinic hours or appointments.",
+    ],
+  },
+  {
     title: "Renew your subscription",
     steps: [
       "Open Settings → Subscription.",

@@ -5,7 +5,7 @@ import { extraHandlers } from "./demo-extras";
 import { local as http, LocalResponse as HttpResponse } from "@/lib/local-data";
 import * as fx from "./fixtures";
 import { getActiveClinicId, setActiveClinicId } from "@/lib/api";
-import { validTemporaryHours } from "@/lib/profile-settings";
+import { validClinicNotices, validTemporaryHours } from "@/lib/profile-settings";
 import { ageFrom } from "@/lib/dates";
 import type {
   Diagnosis,
@@ -278,6 +278,7 @@ export const handlers = [
     if (!existing) return HttpResponse.json({ message: "Clinic not found." }, { status: 404 });
     if (fx.session.role !== "receptionist" && !fx.session.clinics.some((c) => c.id === existing.id && c.role === "owner")) return HttpResponse.json({ message: "Only the principal doctor or front desk can edit this clinic." }, { status: 403 });
     const body = (await request.json()) as Partial<typeof clinic>;
+    if (body.notices !== undefined && !validClinicNotices(body.notices)) return HttpResponse.json({ message: "Every notice needs a note and valid start/end dates." }, { status: 400 });
     if (body.temporaryHours && !validTemporaryHours(body.temporaryHours)) return HttpResponse.json({ message: "Invalid or overlapping temporary hours." }, { status: 400 });
     clinic = { ...existing, ...body, id: existing.id };
     clinicProfiles.set(clinic.id, clinic);

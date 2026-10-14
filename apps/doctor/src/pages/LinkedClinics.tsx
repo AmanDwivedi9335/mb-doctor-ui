@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ClinicNotices } from "@/components/clinical/ClinicNotices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
@@ -90,7 +91,10 @@ export function LinkedClinics() {
     queryKey: ["doctor", "clinic-directory"],
     queryFn: () =>
       api.get<{
-        clinics: Pick<LinkedClinic, "id" | "name" | "address" | "principal">[];
+        clinics: Pick<
+          LinkedClinic,
+          "id" | "name" | "address" | "principal" | "notices"
+        >[];
       }>("/clinic-directory"),
     enabled: open,
   });
@@ -193,6 +197,7 @@ export function LinkedClinics() {
                 )}
               </div>
             </details>
+            <ClinicNotices notices={clinic.notices} />
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
                 Principal: {clinic.principal}
@@ -243,6 +248,11 @@ export function LinkedClinics() {
               </option>
             ))}
           </select>
+          <ClinicNotices
+            notices={
+              directory.data?.clinics.find((c) => c.id === selected)?.notices
+            }
+          />
           {directory.isLoading && <p className="text-sm">Loading clinics…</p>}
           {directory.error && (
             <p role="alert" className="text-sm text-destructive">

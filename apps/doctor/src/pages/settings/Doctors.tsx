@@ -1,4 +1,5 @@
 import { ClinicApprovalQueue } from "@/pages/LinkedClinics";
+import { ClinicNotices } from "@/components/clinical/ClinicNotices";
 import { DoctorWorkingHours } from "@/components/clinical/DoctorWorkingHours";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -130,6 +131,7 @@ export function Doctors() {
               </CardHeader>
               <CardContent className="flex flex-col gap-1 text-[13px] text-muted-foreground">
                 <div>{d.email}</div>
+                <ClinicNotices notices={d.notices} />
                 {d.username && (
                   <div>
                     @{d.username}

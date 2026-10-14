@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
 import { ClinicLogo } from "@/components/clinical/ClinicLogo";
-import { validTemporaryHours } from "@/lib/profile-settings";
+import { ClinicNoticeFields } from "@/components/form/ClinicNoticeFields";
+import {
+  validClinicNotices,
+  validTemporaryHours,
+} from "@/lib/profile-settings";
 import type { Clinic, ClinicOperatingDay } from "@/types";
 
 const DAYS: ClinicOperatingDay["day"][] = [
@@ -59,6 +63,7 @@ const EMPTY = {
   operatingHoursEnd: "20:00",
   operatingHours: weeklyHours(),
   temporaryHours: [] as NonNullable<Clinic["temporaryHours"]>,
+  notices: [] as NonNullable<Clinic["notices"]>,
 };
 
 /** The active clinic's details, or the form that creates the first one. */
@@ -223,6 +228,7 @@ function EditClinic() {
           data.operatingHours,
         ),
         temporaryHours: data.temporaryHours ?? [],
+        notices: data.notices ?? [],
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -239,6 +245,8 @@ function EditClinic() {
       );
     if (f.operatingHours.some((h) => !h.closed && h.opens >= h.closes))
       return toast.error("Closing time must be after opening time.");
+    if (!validClinicNotices(f.notices))
+      return toast.error("Each notice needs a note and valid start/end dates.");
     if (!validTemporaryHours(f.temporaryHours))
       return toast.error(
         "Temporary changes need valid dates and hours, without overlapping date ranges.",
@@ -477,9 +485,7 @@ function EditClinic() {
               className="mt-5 space-y-3 border-t pt-4"
               aria-label="Temporary changes"
             >
-              <h3 className="text-sm font-semibold">
-                Temporary changes to hours or operations
-              </h3>
+              <h3 className="text-sm font-semibold">Temporary opening hours</h3>
               {f.temporaryHours.map((entry, index) => {
                 const change = (patch: Partial<typeof entry>) =>
                   setF(
@@ -554,10 +560,10 @@ function EditClinic() {
                       Clinic closed during this period
                     </label>
                     <TextField
-                      label="Operations note"
+                      label="Reason for hours change"
                       value={entry.note}
                       onChange={(e) => change({ note: e.target.value })}
-                      hint="Describe any temporary service or operation changes."
+                      hint="Use the clinic noticeboard below for messages shown in listings."
                     />
                   </div>
                 );
@@ -585,6 +591,10 @@ function EditClinic() {
                 Add temporary change
               </Button>
             </section>
+            <ClinicNoticeFields
+              value={f.notices}
+              onChange={(notices) => setF("notices", notices)}
+            />
           </CardContent>
         </Card>
 
@@ -610,6 +620,7 @@ function EditClinic() {
                     data.operatingHours,
                   ),
                   temporaryHours: data.temporaryHours ?? [],
+                  notices: data.notices ?? [],
                 })
               }
             >

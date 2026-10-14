@@ -292,10 +292,23 @@ export const profileSettingsHandlers = [
       user: fx.session,
     });
   }),
-  http.get(`${B}/clinic-directory`, () => R.json({ clinics: directory })),
+  http.get(`${B}/clinic-directory`, () =>
+    R.json({
+      clinics: directory.map((c) => ({
+        ...c,
+        notices: savedClinicProfiles[c.id]?.notices ?? [],
+      })),
+    }),
+  ),
   http.get(`${B}/clinic/doctors`, () => {
     syncDoctorRows();
-    return R.json({ doctors: rows[getActiveClinicId() ?? ""] ?? [] });
+    const clinicId = getActiveClinicId() ?? "";
+    return R.json({
+      doctors: (rows[clinicId] ?? []).map((d) => ({
+        ...d,
+        notices: savedClinicProfiles[clinicId]?.notices ?? [],
+      })),
+    });
   }),
   http.get(`${B}/clinics/:clinicId/doctors/:doctorId/hours`, ({ params }) => {
     const m = memberships.find(
@@ -417,6 +430,7 @@ export const profileSettingsHandlers = [
         .map((c) => ({
           ...c,
           name: fx.session.clinics.find((s) => s.id === c.id)?.name ?? c.name,
+          notices: savedClinicProfiles[c.id]?.notices ?? [],
         })),
     });
   }),

@@ -323,6 +323,9 @@ export function useUpdateClinicProfile() {
     onSuccess: (data) => {
       qc.setQueryData(["doctor", "clinic", "profile"], data);
       qc.invalidateQueries({ queryKey: ["doctor", "clinics"] });
+      qc.invalidateQueries({ queryKey: ["doctor", "linked-clinics"] });
+      qc.invalidateQueries({ queryKey: ["doctor", "clinic-directory"] });
+      qc.invalidateQueries({ queryKey: ["doctor", "clinic", "doctors"] });
     },
   });
 }
