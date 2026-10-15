@@ -88,6 +88,15 @@ export function LinkedClinics() {
   const [search, setSearch] = useState("");
   const [linkedSearch, setLinkedSearch] = useState("");
   const [removing, setRemoving] = useState<LinkedClinic | null>(null);
+  const [confirmationStep, setConfirmationStep] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [confirmationInput, setConfirmationInput] = useState("");
+  const closeRemoval = () => {
+    setRemoving(null);
+    setConfirmationStep(false);
+    setConfirmationCode("");
+    setConfirmationInput("");
+  };
   const { data, isLoading, error } = useQuery({
     queryKey: ["doctor", "linked-clinics"],
     queryFn: () => api.get<{ clinics: LinkedClinic[] }>("/me/linked-clinics"),
@@ -107,24 +116,30 @@ export function LinkedClinics() {
     mutationFn: ({
       clinicId,
       remove,
+      deleteClinic,
     }: {
       clinicId: string;
       remove?: boolean;
+      deleteClinic?: boolean;
     }) =>
-      remove
-        ? api.delete(`/me/linked-clinics/${clinicId}`)
-        : api.post("/me/linked-clinics", { clinicId }),
+      deleteClinic
+        ? api.delete(`/clinics/${clinicId}`)
+        : remove
+          ? api.delete(`/me/linked-clinics/${clinicId}`)
+          : api.post("/me/linked-clinics", { clinicId }),
     onSuccess: async (_, action) => {
       setOpen(false);
-      setRemoving(null);
+      closeRemoval();
       setSelected("");
       setSearch("");
       await refreshSession();
       await qc.invalidateQueries({ queryKey: ["doctor"] });
       toast.success(
-        action.remove
-          ? "Clinic removed."
-          : "Request sent to the principal doctor for approval.",
+        action.deleteClinic
+          ? "Clinic deleted."
+          : action.remove
+            ? "Clinic removed."
+            : "Request sent to the principal doctor for approval.",
       );
     },
     onError: (e) => toast.error(e.message),
@@ -238,16 +253,18 @@ export function LinkedClinics() {
                 <span className="text-xs text-muted-foreground">
                   Principal: {clinic.principal}
                 </span>
-                {clinic.role !== "owner" && (
+                {user?.role === "doctor" && (
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={update.isPending}
                     onClick={() => setRemoving(clinic)}
                   >
-                    {clinic.status === "pending"
-                      ? "Cancel request"
-                      : "Remove Clinic"}
+                    {clinic.role === "owner"
+                      ? "Delete Clinic"
+                      : clinic.status === "pending"
+                        ? "Cancel request"
+                        : "Remove Clinic"}
                   </Button>
                 )}
                 {clinic.role === "owner" && (
@@ -332,35 +349,92 @@ export function LinkedClinics() {
       </Dialog>
       <Dialog
         open={!!removing}
-        onOpenChange={(value) => !value && setRemoving(null)}
+        onOpenChange={(value) => !value && !update.isPending && closeRemoval()}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {removing?.status === "pending"
-                ? "Cancel clinic request?"
-                : "Remove clinic?"}
+              {confirmationStep
+                ? "Final confirmation"
+                : removing?.role === "owner"
+                  ? "Delete clinic?"
+                  : removing?.status === "pending"
+                    ? "Cancel clinic request?"
+                    : "Remove clinic?"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm">
-            {removing?.status === "pending"
-              ? "Withdraw your pending request to"
-              : "You will unlink yourself from"}{" "}
-            {removing?.name}. You can request to join again later.
+            {removing?.role === "owner" ? (
+              `Permanently delete ${removing.name}? This removes the clinic profile, notices, working hours, doctor links and pending requests for all its doctors. This cannot be undone.`
+            ) : (
+              <>
+                {removing?.status === "pending"
+                  ? "Withdraw your pending request to"
+                  : "You will unlink yourself from"}{" "}
+                {removing?.name}. The clinic and other doctors will remain. You
+                can request to join again later.
+              </>
+            )}
           </p>
+          {confirmationStep && (
+            <div className="space-y-3">
+              <p className="text-sm">
+                Type{" "}
+                <strong className="select-none font-mono">
+                  {confirmationCode}
+                </strong>{" "}
+                exactly to confirm.
+              </p>
+              <TextField
+                label="Confirmation text"
+                value={confirmationInput}
+                onChange={(e) => setConfirmationInput(e.target.value)}
+                autoComplete="off"
+                disabled={update.isPending}
+              />
+            </div>
+          )}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setRemoving(null)}>
+            <Button
+              variant="outline"
+              disabled={update.isPending}
+              onClick={closeRemoval}
+            >
               Keep
             </Button>
             <Button
               variant="destructive"
-              disabled={update.isPending}
-              onClick={() =>
-                removing &&
-                update.mutate({ clinicId: removing.id, remove: true })
+              disabled={
+                update.isPending ||
+                (confirmationStep && confirmationInput !== confirmationCode)
               }
+              onClick={() => {
+                if (!removing) return;
+                if (!confirmationStep) {
+                  setConfirmationCode(
+                    `CONFIRM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+                  );
+                  setConfirmationInput("");
+                  setConfirmationStep(true);
+                  return;
+                }
+                if (confirmationInput !== confirmationCode) return;
+                update.mutate({
+                  clinicId: removing.id,
+                  remove: true,
+                  deleteClinic: removing.role === "owner",
+                });
+              }}
             >
-              Confirm
+              {update.isPending
+                ? "Processing…"
+                : !confirmationStep
+                  ? "Continue"
+                  : removing?.role === "owner"
+                    ? "Delete clinic permanently"
+                    : removing?.status === "pending"
+                      ? "Cancel request"
+                      : "Remove clinic"}
             </Button>
           </div>
         </DialogContent>

@@ -288,6 +288,25 @@ const paymentHistoryByAccount: Record<string, typeof fx.subscriptionHistory> = {
   [baseSession.id]: structuredClone(fx.subscriptionHistory),
 };
 export const profileSettingsHandlers = [
+  http.delete(`${B}/clinics/:clinicId`, ({ params }) => {
+    const clinicId = params.clinicId;
+    if (!owns(clinicId))
+      return R.json(
+        { message: "Only the principal doctor can delete this clinic." },
+        { status: 403 },
+      );
+    const index = directory.findIndex((c) => c.id === clinicId);
+    if (index < 0)
+      return R.json({ message: "Clinic not found." }, { status: 404 });
+    directory.splice(index, 1);
+    for (let i = memberships.length - 1; i >= 0; i--)
+      if (memberships[i].id === clinicId) memberships.splice(i, 1);
+    requests = requests.filter((r) => r.clinicId !== clinicId);
+    delete rows[clinicId];
+    delete savedClinicProfiles[clinicId];
+    syncLinkedClinics();
+    return R.json({ deleted: true });
+  }),
   http.post(`${A}/login`, async ({ request }) => {
     const body = await request.json();
     const requested = Object.values(accountProfiles).find(
@@ -814,12 +833,16 @@ const snapshot = (): SharedState => ({
 });
 registerLocalPersistence({
   load: () => {
-    const saved = readDemoState<SharedState>("profile-settings", snapshot());
+    const saved = structuredClone(readDemoState<SharedState>("profile-settings", snapshot()));
     directory.splice(0, directory.length, ...saved.directory);
     memberships.splice(0, memberships.length, ...saved.memberships);
     requests = saved.requests;
+    Object.keys(rows).forEach((key) => delete rows[key]);
     Object.assign(rows, saved.rows);
     Object.assign(accountProfiles, saved.profiles);
+    Object.keys(savedClinicProfiles).forEach(
+      (key) => delete savedClinicProfiles[key],
+    );
     Object.assign(savedClinicProfiles, saved.clinics);
     const profile = accountProfiles[fx.session.id];
     if (profile) {

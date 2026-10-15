@@ -84,6 +84,33 @@ assert.ok(
     (d) => d.id === oldOwnerId,
   ),
 );
+// Members cannot delete clinics; deletion removes every link/request and stays deleted.
+await login("dr.mehta@test.com");
+await assert.rejects(() => api.delete("/clinics/c1"));
+await api.post("/me/linked-clinics", { clinicId: "c1" });
+await login("dr.shah@test.com");
+await api.delete("/clinics/c1");
+assert.ok(
+  !(
+    await api.get<{ clinics: LinkedClinic[] }>("/clinic-directory")
+  ).clinics.some((c) => c.id === "c1"),
+);
+assert.ok(
+  !(
+    await api.get<{ clinics: LinkedClinic[] }>("/me/linked-clinics")
+  ).clinics.some((c) => c.id === "c1"),
+);
+await assert.rejects(() => api.get("/clinic/profile"));
+await assert.rejects(() => api.post("/me/linked-clinics", { clinicId: "c1" }));
+await login("dr.mehta@test.com");
+assert.ok(
+  !(
+    await api.get<{ clinics: LinkedClinic[] }>("/me/linked-clinics")
+  ).clinics.some((c) => c.id === "c1"),
+);
+await login("dr.shah@test.com");
+setActiveClinicId("c2");
+assert.equal((await api.get<Clinic>("/clinic/profile")).id, "c2");
 console.log(
   "Registered-doctor ownership transfer, unique owner, old-owner permissions, own timings, pending membership and clinic locations pass.",
 );

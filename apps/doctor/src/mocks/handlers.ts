@@ -67,7 +67,7 @@ let clinic = { ...fx.clinic };
 const clinicProfiles = new Map([[clinic.id, clinic]]);
 const currentClinic = () => {
   const selected = getActiveClinicId();
-  return selected ? savedClinic(selected) ?? clinicProfiles.get(selected) : undefined;
+  return selected ? savedClinic(selected) : undefined;
 };
 let subscription = { ...fx.subscription };
 
