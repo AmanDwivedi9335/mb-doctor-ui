@@ -167,21 +167,25 @@ export function Subscription() {
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    variant={current ? "outline" : "default"}
-                    disabled={
-                      checkout.isPending || downgrade || user?.role !== "doctor"
-                    }
-                    onClick={() => choose(p.code, p.name)}
-                  >
-                    {current
-                      ? "Renew"
-                      : downgrade
-                        ? `After your Pro plan ends`
-                        : live
-                          ? `Switch to ${p.name}`
-                          : `Choose ${p.name}`}
-                  </Button>
+                  {!current && (
+                    <Button
+                      variant={current ? "outline" : "default"}
+                      disabled={
+                        checkout.isPending ||
+                        downgrade ||
+                        user?.role !== "doctor"
+                      }
+                      onClick={() => choose(p.code, p.name)}
+                    >
+                      {current
+                        ? "Renew"
+                        : downgrade
+                          ? `After your Pro plan ends`
+                          : live
+                            ? `Switch to ${p.name}`
+                            : `Choose ${p.name}`}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );

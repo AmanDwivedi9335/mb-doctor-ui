@@ -164,7 +164,7 @@ export function Appointments() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Today's appointments{clinic ? ` at ${clinic.name}` : ""}</h2>
+        <h2 className="text-xl font-semibold">Scheduled appointments{clinic ? ` at ${clinic.name}` : ""}</h2>
         {canBook && (
           <Button onClick={() => setOpen(true)}>
             <Plus /> Book Appointment

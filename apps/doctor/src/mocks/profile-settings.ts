@@ -26,24 +26,35 @@ import type {
 } from "@/lib/profile-settings";
 const B = "/api/v1/doctor";
 const A = "/api/v1/auth";
+const locations: Record<string, { city: string; state: string }> = {
+  c1: { city: "Hyderabad", state: "Telangana" },
+  c2: { city: "Pune", state: "Maharashtra" },
+  c3: { city: "Pune", state: "Maharashtra" },
+};
 const directory = [
   {
     id: "c1",
     name: fx.clinic.name,
     address: fx.clinic.address,
     principal: fx.doctor.name,
+    city: "Hyderabad",
+    state: "Telangana",
   },
   {
     id: "c2",
     name: "City Care Clinic",
     address: "MG Road, Pune",
     principal: "Dr. Priya Shah",
+    city: "Pune",
+    state: "Maharashtra",
   },
   {
     id: "c3",
     name: "Community Health Centre",
     address: "Baner, Pune",
     principal: "Dr. Ravi Kumar",
+    city: "Pune",
+    state: "Maharashtra",
   },
 ];
 const memberships: (LinkedClinic & { doctorId: string })[] = [
@@ -129,6 +140,8 @@ const savedClinicProfiles: Record<string, Clinic> = Object.fromEntries(
       id: c.id,
       name: c.name,
       address: c.address,
+      city: c.city,
+      state: c.state,
       qrUrl: c.id === fx.clinic.id ? fx.clinic.qrUrl : null,
       upiId: c.id === fx.clinic.id ? fx.clinic.upiId : "",
     },
@@ -206,6 +219,13 @@ function selectDemoAccount(id: string, role: Session["role"] = "doctor") {
 let restoredAccount = false;
 const owns = (clinicId: string) =>
   fx.session.role === "doctor" &&
+  memberships.some(
+    (m) =>
+      m.id === clinicId &&
+      m.doctorId === fx.session.id &&
+      m.role === "owner" &&
+      m.status === "approved",
+  ) &&
   fx.session.clinics.some((c) => c.id === clinicId && c.role === "owner");
 export function syncLinkedClinics() {
   fx.session.clinics = fx.session.clinics.filter((c) =>
@@ -219,13 +239,17 @@ export function syncLinkedClinics() {
   for (const membership of memberships.filter(
     (c) => c.doctorId === fx.session.id && c.status === "approved",
   )) {
-    if (!fx.session.clinics.some((c) => c.id === membership.id))
-      fx.session.clinics.push({
-        id: membership.id,
-        name: membership.name,
-        role: membership.role,
-        memberCount: 1,
-      });
+    const summary = {
+      id: membership.id,
+      name: membership.name,
+      role: membership.role,
+      memberCount: memberships.filter(
+        (m) => m.id === membership.id && m.status === "approved",
+      ).length,
+    };
+    const existing = fx.session.clinics.find((c) => c.id === membership.id);
+    if (existing) Object.assign(existing, summary);
+    else fx.session.clinics.push(summary);
   }
 }
 let preferences: AccountPreferencesData = {
@@ -292,10 +316,120 @@ export const profileSettingsHandlers = [
       user: fx.session,
     });
   }),
+  http.get(`${B}/registered-doctors`, () => {
+    for (const d of Object.values(rows)
+      .flat()
+      .filter((d) => d.active)) {
+      if (!accountProfiles[d.id])
+        accountProfiles[d.id] = {
+          id: d.id,
+          name: d.name,
+          email: d.email,
+          role: "doctor",
+          specialization: d.specialization,
+          doctorNo: d.doctorNo,
+        };
+    }
+    return R.json({
+      doctors: Object.values(accountProfiles)
+        .filter((d) => d.role === "doctor")
+        .map(({ id, name, email, specialization, doctorNo }) => ({
+          id,
+          name,
+          email,
+          specialization,
+          doctorNo,
+          role: "doctor",
+        })),
+    });
+  }),
+  http.post(
+    `${B}/clinics/:clinicId/transfer-ownership`,
+    async ({ params, request }) => {
+      if (!owns(params.clinicId))
+        return R.json(
+          {
+            message:
+              "Only the current principal doctor can transfer ownership.",
+          },
+          { status: 403 },
+        );
+      const { doctorId } = await request.json();
+      const registered =
+        Object.values(accountProfiles).find(
+          (d) => d.id === doctorId && d.role === "doctor",
+        ) ??
+        Object.values(rows)
+          .flat()
+          .find((d) => d.id === doctorId && d.active);
+      if (!registered)
+        return R.json(
+          { message: "Select a registered doctor." },
+          { status: 400 },
+        );
+      if (doctorId === fx.session.id)
+        return R.json(
+          { message: "Select a different doctor." },
+          { status: 400 },
+        );
+      const clinic = directory.find((c) => c.id === params.clinicId);
+      if (!clinic)
+        return R.json({ message: "Clinic not found." }, { status: 404 });
+      if (!accountProfiles[doctorId])
+        accountProfiles[doctorId] = {
+          id: registered.id,
+          name: registered.name,
+          email: registered.email,
+          role: "doctor",
+          specialization: registered.specialization,
+        };
+      memberships
+        .filter((m) => m.id === clinic.id && m.role === "owner")
+        .forEach((m) => {
+          m.role = "member";
+        });
+      const successor = memberships.find(
+        (m) => m.id === clinic.id && m.doctorId === doctorId,
+      );
+      if (successor) {
+        successor.role = "owner";
+        successor.status = "approved";
+      } else
+        memberships.push({
+          ...clinic,
+          doctorId,
+          role: "owner",
+          status: "approved",
+          hours: [],
+        });
+      clinic.principal = registered.name;
+      memberships
+        .filter((m) => m.id === clinic.id)
+        .forEach((m) => {
+          m.principal = registered.name;
+        });
+      requests = requests.filter(
+        (r) => r.clinicId !== clinic.id || r.doctorId !== doctorId,
+      );
+      syncDoctorRows();
+      syncLinkedClinics();
+      return R.json({ clinicId: clinic.id, ownerId: doctorId });
+    },
+  ),
   http.get(`${B}/clinic-directory`, () =>
     R.json({
       clinics: directory.map((c) => ({
         ...c,
+        city:
+          savedClinicProfiles[c.id]?.city ||
+          c.city ||
+          locations[c.id]?.city ||
+          "",
+        state:
+          savedClinicProfiles[c.id]?.state ||
+          c.state ||
+          locations[c.id]?.state ||
+          "",
         notices: savedClinicProfiles[c.id]?.notices ?? [],
       })),
     }),
@@ -336,9 +470,15 @@ export const profileSettingsHandlers = [
   http.put(
     `${B}/clinics/:clinicId/doctors/:doctorId/hours`,
     async ({ params, request }) => {
-      if (!owns(params.clinicId))
+      if (
+        !owns(params.clinicId) &&
+        !(fx.session.role === "doctor" && params.doctorId === fx.session.id)
+      )
         return R.json(
-          { message: "Only the principal doctor can assign working hours." },
+          {
+            message:
+              "You can set your own timings; only the principal can edit another doctor’s timings.",
+          },
           { status: 403 },
         );
       const m = memberships.find(
@@ -430,6 +570,16 @@ export const profileSettingsHandlers = [
         .map((c) => ({
           ...c,
           name: fx.session.clinics.find((s) => s.id === c.id)?.name ?? c.name,
+          city:
+            savedClinicProfiles[c.id]?.city ||
+            c.city ||
+            locations[c.id]?.city ||
+            "",
+          state:
+            savedClinicProfiles[c.id]?.state ||
+            c.state ||
+            locations[c.id]?.state ||
+            "",
           notices: savedClinicProfiles[c.id]?.notices ?? [],
         })),
     });
@@ -722,19 +872,34 @@ registerLocalPersistence({
   },
 });
 export function savedClinic(id: string) {
-  return savedClinicProfiles[id];
+  const clinic = savedClinicProfiles[id];
+  const entry = directory.find((c) => c.id === id);
+  return clinic
+    ? {
+        ...clinic,
+        city: clinic.city || entry?.city || locations[id]?.city || "",
+        state: clinic.state || entry?.state || locations[id]?.state || "",
+      }
+    : undefined;
 }
 export function storeClinic(clinic: Clinic) {
   savedClinicProfiles[clinic.id] = clinic;
   const entry = directory.find((c) => c.id === clinic.id);
   if (entry)
-    Object.assign(entry, { name: clinic.name, address: clinic.address });
+    Object.assign(entry, {
+      name: clinic.name,
+      address: clinic.address,
+      city: clinic.city ?? entry.city ?? "",
+      state: clinic.state ?? entry.state ?? "",
+    });
   else
     directory.push({
       id: clinic.id,
       name: clinic.name,
       address: clinic.address,
       principal: fx.session.name,
+      city: clinic.city ?? "",
+      state: clinic.state ?? "",
     });
   memberships
     .filter((m) => m.id === clinic.id)

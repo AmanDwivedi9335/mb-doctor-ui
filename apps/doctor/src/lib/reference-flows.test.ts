@@ -92,8 +92,9 @@ assert.equal(
     .inactivityMinutes,
   15,
 );
+await api.put(`/clinics/c2/doctors/${originalId}/hours`, { hours });
 await assert.rejects(() =>
-  api.put(`/clinics/c2/doctors/${originalId}/hours`, { hours }),
+  api.put(`/clinics/c2/doctors/principal-city-care/hours`, { hours }),
 );
 const ref = (await authApi.get<AccountPreferencesData>("/auth/me/preferences"))
   .referralLink;

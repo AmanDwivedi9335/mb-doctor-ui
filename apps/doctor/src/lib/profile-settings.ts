@@ -1,6 +1,8 @@
 import type { Clinic, ClinicNotice, ClinicOperatingDay } from "@/types";
 
 export interface LinkedClinic {
+  city?: string;
+  state?: string;
   id: string;
   name: string;
   address: string;

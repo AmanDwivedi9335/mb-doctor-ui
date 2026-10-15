@@ -288,6 +288,8 @@ export interface ClinicNotice {
 }
 
 export interface Clinic {
+  city?: string;
+  state?: string;
   id: string;
   name: string;
   address: string;

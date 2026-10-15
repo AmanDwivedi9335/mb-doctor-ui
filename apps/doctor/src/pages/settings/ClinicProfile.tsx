@@ -23,6 +23,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
+import { WeeklyHoursTable } from "@/components/clinical/WeeklyHoursTable";
 import { ClinicLogo } from "@/components/clinical/ClinicLogo";
 import { ClinicNoticeFields } from "@/components/form/ClinicNoticeFields";
 import {
@@ -55,6 +56,8 @@ const weeklyHours = (
 const EMPTY = {
   name: "",
   address: "",
+  city: "",
+  state: "",
   phone: "",
   website: "",
   receptionMobile: "",
@@ -137,7 +140,13 @@ function CreateClinicForm({
   inDialog?: boolean;
 }) {
   const create = useCreateClinic();
-  const { f, setF } = useForm({ name: "", address: "", phone: "" });
+  const { f, setF } = useForm({
+    name: "",
+    address: "",
+    phone: "",
+    city: "",
+    state: "",
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -146,6 +155,8 @@ function CreateClinicForm({
       const clinic = await create.mutateAsync({
         name: f.name.trim(),
         address: f.address.trim() || null,
+        city: f.city.trim(),
+        state: f.state.trim(),
         phone: f.phone.trim() || null,
       });
       toast.success(`${clinic.name} created.`);
@@ -170,6 +181,18 @@ function CreateClinicForm({
         value={f.address}
         onChange={(e) => setF("address", e.target.value)}
       />
+      <div className="grid grid-cols-2 gap-3">
+        <TextField
+          label="City"
+          value={f.city}
+          onChange={(e) => setF("city", e.target.value)}
+        />
+        <TextField
+          label="State"
+          value={f.state}
+          onChange={(e) => setF("state", e.target.value)}
+        />
+      </div>
       <TextField
         label="Phone"
         value={f.phone}
@@ -216,6 +239,8 @@ function EditClinic() {
       seed({
         name: data.name,
         address: data.address ?? "",
+        city: data.city ?? "",
+        state: data.state ?? "",
         phone: data.phone ?? "",
         website: data.website ?? "",
         receptionMobile: data.receptionMobile ?? "",
@@ -318,6 +343,18 @@ function EditClinic() {
               />
               <div className="grid grid-cols-2 gap-3">
                 <TextField
+                  label="City"
+                  value={f.city}
+                  onChange={(e) => setF("city", e.target.value)}
+                />
+                <TextField
+                  label="State"
+                  value={f.state}
+                  onChange={(e) => setF("state", e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <TextField
                   label="Phone"
                   value={f.phone}
                   onChange={(e) => setF("phone", e.target.value)}
@@ -347,7 +384,7 @@ function EditClinic() {
                 />
               </div>
               <section
-                className="space-y-4 border-t pt-4"
+                className="grid grid-cols-2 items-start gap-4 border-t pt-4"
                 aria-label="Branding and payment"
               >
                 <ClinicLogo />
@@ -434,52 +471,10 @@ function EditClinic() {
                 Set the normal weekly schedule. Temporary changes below take
                 precedence within their date range.
               </p>
-              {f.operatingHours.map((entry) => {
-                const dayLabel =
-                  entry.day.charAt(0).toUpperCase() + entry.day.slice(1);
-                const change = (patch: Partial<ClinicOperatingDay>) =>
-                  setF(
-                    "operatingHours",
-                    f.operatingHours.map((day) =>
-                      day.day === entry.day ? { ...day, ...patch } : day,
-                    ),
-                  );
-                return (
-                  <div
-                    key={entry.day}
-                    className="grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[110px_1fr_1fr_auto]"
-                  >
-                    <span className="text-sm font-medium">{dayLabel}</span>
-                    <TextField
-                      label="Opens"
-                      aria-label={`${dayLabel} opens`}
-                      type="time"
-                      value={entry.opens}
-                      disabled={entry.closed}
-                      required={!entry.closed}
-                      onChange={(e) => change({ opens: e.target.value })}
-                    />
-                    <TextField
-                      label="Closes"
-                      aria-label={`${dayLabel} closes`}
-                      type="time"
-                      value={entry.closes}
-                      disabled={entry.closed}
-                      required={!entry.closed}
-                      onChange={(e) => change({ closes: e.target.value })}
-                    />
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={entry.closed}
-                        onChange={(e) => change({ closed: e.target.checked })}
-                        aria-label={`${dayLabel} closed`}
-                      />
-                      Closed
-                    </label>
-                  </div>
-                );
-              })}
+              <WeeklyHoursTable
+                hours={f.operatingHours}
+                onChange={(hours) => setF("operatingHours", hours)}
+              />
             </section>
             <section
               className="mt-5 space-y-3 border-t pt-4"
@@ -608,6 +603,8 @@ function EditClinic() {
                   ...f,
                   name: data.name,
                   address: data.address ?? "",
+                  city: data.city ?? "",
+                  state: data.state ?? "",
                   phone: data.phone ?? "",
                   website: data.website ?? "",
                   receptionMobile: data.receptionMobile ?? "",

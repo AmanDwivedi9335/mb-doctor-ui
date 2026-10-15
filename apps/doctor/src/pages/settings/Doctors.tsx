@@ -1,3 +1,4 @@
+import { TransferClinicOwnership } from "@/components/clinical/TransferClinicOwnership";
 import { ClinicApprovalQueue } from "@/pages/LinkedClinics";
 import { ClinicNotices } from "@/components/clinical/ClinicNotices";
 import { DoctorWorkingHours } from "@/components/clinical/DoctorWorkingHours";
@@ -83,6 +84,12 @@ export function Doctors() {
         <p className="text-sm text-muted-foreground">
           Doctors consulting at {clinic?.name ?? "this clinic"}.
         </p>
+        {user?.role === "doctor" && clinic?.role === "owner" && (
+          <TransferClinicOwnership
+            clinicId={activeClinicId}
+            clinicName={clinic.name}
+          />
+        )}
         {canManage && (
           <Button onClick={() => setOpen(true)}>
             <Plus /> Invite doctor
@@ -159,7 +166,8 @@ export function Doctors() {
                     doctorId={d.id}
                     doctorName={d.name}
                     canEdit={
-                      user?.role === "doctor" && clinic?.role === "owner"
+                      user?.role === "doctor" &&
+                      (clinic?.role === "owner" || d.id === user.id)
                     }
                   />
                 )}

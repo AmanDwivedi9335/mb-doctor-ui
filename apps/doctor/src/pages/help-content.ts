@@ -14,13 +14,13 @@ export const tutorials = [
       "Open Profile → Linked Clinics and choose Add Clinic.",
       "Select the clinic and send a request to its principal doctor.",
       "The clinic stays marked Pending Approval until the principal doctor approves it.",
-      "Expand a clinic row to see your assigned working hours. Once approved, use Remove Clinic to leave; a pending request can be cancelled.",
+      "Expand a clinic row to view and set your own timings. Once approved, use Remove Clinic to leave; a pending request can be cancelled.",
     ],
   },
   {
     title: "Review a clinic link request",
     steps: [
-      "As the principal doctor, open Linked Clinics or Clinic settings → Doctors.",
+      "As the principal doctor, open Clinic settings → Doctors. Clinic link requests are shown only there.",
       "Review the doctor and clinic listed in Clinic link requests.",
       "Choose Approve to link the doctor or Reject to decline. Other doctors cannot approve the request.",
       "After approval, open Clinic settings → Doctors and expand Working hours to assign that doctor’s weekly schedule.",
@@ -33,6 +33,14 @@ export const tutorials = [
       "Set the normal weekly opening and closing times; mark closed days.",
       "For a temporary change, add a start date, end date, changed hours or closure, and an operations note.",
       "Keep date ranges separate and choose Save changes. Temporary records do not overwrite the weekly schedule.",
+    ],
+  },
+  {
+    title: "Transfer clinic ownership",
+    steps: [
+      "As the current principal, choose Transfer ownership for your clinic in Linked Clinics or Clinic settings → Doctors.",
+      "Search registered doctors by name, email or doctor ID and select the new principal.",
+      "Confirm the transfer. You remain a linked doctor and can remove yourself afterward.",
     ],
   },
   {
@@ -86,7 +94,7 @@ export const profileFaqs = [
     id: "faq-basic",
     question: "Can Basic doctors manage linked clinics?",
     answer:
-      "Yes. Basic doctors can view clinic links, request to join, leave a clinic, and view their assigned working hours. Appointment access requires Pro.",
+      "Yes. Basic doctors can view clinic links, request to join, leave a clinic, and view and edit their own working hours. Appointment access requires Pro.",
   },
   {
     id: "faq-hours",
@@ -98,7 +106,7 @@ export const profileFaqs = [
     id: "faq-owner",
     question: "Why can’t I remove my own clinic?",
     answer:
-      "A principal doctor must transfer clinic ownership before leaving. This demo does not include ownership transfer; contact support for help.",
+      "Choose Transfer ownership in Linked Clinics or Clinic settings → Doctors, search for a registered doctor, select them and confirm. You remain linked as a member and can then choose Remove Clinic.",
   },
   {
     id: "faq-renew",

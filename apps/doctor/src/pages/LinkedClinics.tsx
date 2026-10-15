@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { TextField } from "@/components/form/FormKit";
+import { DoctorWorkingHours } from "@/components/clinical/DoctorWorkingHours";
+import { TransferClinicOwnership } from "@/components/clinical/TransferClinicOwnership";
 import { ClinicNotices } from "@/components/clinical/ClinicNotices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -78,10 +81,12 @@ export function ClinicApprovalQueue() {
 }
 
 export function LinkedClinics() {
-  const { refreshSession } = useAuth();
+  const { user, refreshSession } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("");
+  const [search, setSearch] = useState("");
+  const [linkedSearch, setLinkedSearch] = useState("");
   const [removing, setRemoving] = useState<LinkedClinic | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["doctor", "linked-clinics"],
@@ -93,7 +98,7 @@ export function LinkedClinics() {
       api.get<{
         clinics: Pick<
           LinkedClinic,
-          "id" | "name" | "address" | "principal" | "notices"
+          "id" | "name" | "address" | "principal" | "notices" | "city" | "state"
         >[];
       }>("/clinic-directory"),
     enabled: open,
@@ -113,6 +118,7 @@ export function LinkedClinics() {
       setOpen(false);
       setRemoving(null);
       setSelected("");
+      setSearch("");
       await refreshSession();
       await qc.invalidateQueries({ queryKey: ["doctor"] });
       toast.success(
@@ -125,7 +131,11 @@ export function LinkedClinics() {
   });
   const available =
     directory.data?.clinics.filter(
-      (c) => !data?.clinics.some((linked) => linked.id === c.id),
+      (c) =>
+        !data?.clinics.some((linked) => linked.id === c.id) &&
+        `${c.name} ${c.address} ${c.city ?? ""} ${c.state ?? ""}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase()),
     ) ?? [];
   if (isLoading) return <Skeleton className="h-48" />;
   if (error)
@@ -150,80 +160,106 @@ export function LinkedClinics() {
           No linked clinics yet. Add a clinic to request membership.
         </p>
       )}
-      {data?.clinics.map((clinic) => (
-        <Card key={clinic.id}>
-          <CardContent className="pt-5">
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-3">
-                <div className="flex-1">
-                  <p className="font-semibold">{clinic.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {clinic.address}
-                  </p>
-                </div>
-                <Badge
-                  variant={clinic.status === "pending" ? "warning" : "success"}
-                >
-                  {clinic.status === "pending"
-                    ? "Pending Approval"
-                    : clinic.role === "owner"
-                      ? "Principal doctor"
-                      : "Linked"}
-                </Badge>
-                <span
-                  className="text-xl transition-transform group-open:rotate-180"
-                  aria-hidden="true"
-                >
-                  ⌄
-                </span>
-              </summary>
-              <div className="mt-4 space-y-2 border-t pt-4">
-                <h4 className="text-sm font-semibold">
-                  Your working hours at this clinic
-                </h4>
-                {clinic.hours.length ? (
-                  clinic.hours.map((h) => (
-                    <p key={h.day} className="text-sm capitalize">
-                      {h.day}:{" "}
-                      {h.closed ? "Not working" : `${h.opens}–${h.closes}`}
+      <TextField
+        label="Search linked clinics"
+        value={linkedSearch}
+        onChange={(e) => setLinkedSearch(e.target.value)}
+        placeholder="Clinic name, address, city or state"
+      />
+      {data?.clinics.length &&
+      !data.clinics.some((c) =>
+        `${c.name} ${c.address} ${c.city ?? ""} ${c.state ?? ""}`
+          .toLowerCase()
+          .includes(linkedSearch.trim().toLowerCase()),
+      ) ? (
+        <p className="text-sm text-muted-foreground">
+          No matching linked clinics.
+        </p>
+      ) : null}
+      {data?.clinics
+        .filter((c) =>
+          `${c.name} ${c.address} ${c.city ?? ""} ${c.state ?? ""}`
+            .toLowerCase()
+            .includes(linkedSearch.trim().toLowerCase()),
+        )
+        .map((clinic) => (
+          <Card key={clinic.id}>
+            <CardContent className="pt-5">
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center gap-3">
+                  <div className="flex-1">
+                    <p className="font-semibold">{clinic.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {[clinic.address, clinic.city, clinic.state]
+                        .filter(Boolean)
+                        .join(", ")}
                     </p>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">
+                  </div>
+                  <Badge
+                    variant={
+                      clinic.status === "pending" ? "warning" : "success"
+                    }
+                  >
                     {clinic.status === "pending"
-                      ? "Working hours will be available once approved and assigned."
-                      : "Working hours have not been assigned."}
-                  </p>
+                      ? "Pending Approval"
+                      : clinic.role === "owner"
+                        ? "Principal doctor"
+                        : "Linked"}
+                  </Badge>
+                  <span
+                    className="text-xl transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  >
+                    ⌄
+                  </span>
+                </summary>
+                <div className="mt-4 space-y-2 border-t pt-4">
+                  <h4 className="text-sm font-semibold">
+                    Your working hours at this clinic
+                  </h4>
+                  {clinic.status === "approved" && user ? (
+                    <DoctorWorkingHours
+                      clinicId={clinic.id}
+                      doctorId={user.id}
+                      doctorName={user.name}
+                      canEdit={user.role === "doctor"}
+                      inline
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Set your timings after the principal approves your clinic
+                      request.
+                    </p>
+                  )}
+                </div>
+              </details>
+              <ClinicNotices notices={clinic.notices} />
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Principal: {clinic.principal}
+                </span>
+                {clinic.role !== "owner" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={update.isPending}
+                    onClick={() => setRemoving(clinic)}
+                  >
+                    {clinic.status === "pending"
+                      ? "Cancel request"
+                      : "Remove Clinic"}
+                  </Button>
+                )}
+                {clinic.role === "owner" && (
+                  <TransferClinicOwnership
+                    clinicId={clinic.id}
+                    clinicName={clinic.name}
+                  />
                 )}
               </div>
-            </details>
-            <ClinicNotices notices={clinic.notices} />
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                Principal: {clinic.principal}
-              </span>
-              {clinic.role !== "owner" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={update.isPending}
-                  onClick={() => setRemoving(clinic)}
-                >
-                  {clinic.status === "pending"
-                    ? "Cancel request"
-                    : "Remove Clinic"}
-                </Button>
-              )}
-              {clinic.role === "owner" && (
-                <span className="text-xs text-muted-foreground">
-                  Transfer ownership before leaving.
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-      <ClinicApprovalQueue />
+            </CardContent>
+          </Card>
+        ))}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -232,22 +268,46 @@ export function LinkedClinics() {
           <p className="text-sm text-muted-foreground">
             Choose a clinic. Its principal doctor must approve your request.
           </p>
-          <label className="text-sm font-medium" htmlFor="link-clinic">
-            Clinic
-          </label>
-          <select
-            id="link-clinic"
-            className="rounded-md border bg-background p-2 text-sm"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
+          <TextField
+            label="Search clinics"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSelected("");
+            }}
+            placeholder="Type clinic name, address, city or state"
+          />
+          <div
+            className="max-h-64 space-y-2 overflow-y-auto"
+            role="group"
+            aria-label="Clinic search results"
           >
-            <option value="">Select a clinic</option>
             {available.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} — {c.principal}
-              </option>
+              <label
+                key={c.id}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+              >
+                <input
+                  type="radio"
+                  name="link-clinic"
+                  checked={selected === c.id}
+                  onChange={() => setSelected(c.id)}
+                />
+                <span className="min-w-0 text-sm">
+                  <span className="block font-semibold">{c.name}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {c.address}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {[c.city, c.state].filter(Boolean).join(", ")}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Principal: {c.principal}
+                  </span>
+                </span>
+              </label>
             ))}
-          </select>
+          </div>
           <ClinicNotices
             notices={
               directory.data?.clinics.find((c) => c.id === selected)?.notices
@@ -260,7 +320,7 @@ export function LinkedClinics() {
             </p>
           )}
           {directory.data && !available.length && (
-            <p className="text-sm">No additional clinics available.</p>
+            <p className="text-sm">No matching clinics available.</p>
           )}
           <Button
             disabled={!selected || update.isPending}

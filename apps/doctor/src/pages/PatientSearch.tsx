@@ -145,7 +145,7 @@ export function PatientSearch() {
             </TabsTrigger>
             <TabsTrigger value="today">
               <Crown className="mr-2 size-4 text-amber-300" />
-              Today's Appointments{" "}
+              Scheduled appointments{" "}
               {canSeeAppointments ? `(${todayCount})` : "(Pro)"}
             </TabsTrigger>
           </TabsList>

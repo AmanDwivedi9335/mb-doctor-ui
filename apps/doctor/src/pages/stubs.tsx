@@ -112,7 +112,7 @@ export function AppointmentsTable({ paged = false }: { paged?: boolean }) {
 export function Appointments() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Today's appointments</h2>
+      <h2 className="text-xl font-semibold">Scheduled appointments</h2>
       <AppointmentsTable />
     </div>
   );
