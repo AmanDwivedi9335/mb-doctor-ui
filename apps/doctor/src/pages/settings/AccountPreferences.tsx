@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TextField } from "@/components/form/FormKit";
 import { toast } from "@/components/ui/sonner";
 
 export function AccountPreferences() {
@@ -23,9 +22,7 @@ export function AccountPreferences() {
     queryKey: ["account-preferences"],
     queryFn: () => authApi.get<AccountPreferencesData>("/auth/me/preferences"),
   });
-  const [mfaOpen, setMfaOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
-  const [code, setCode] = useState("");
   const save = useMutation({
     mutationFn: (minutes: number) =>
       authApi.put<AccountPreferencesData>("/auth/me/preferences", {
@@ -35,29 +32,6 @@ export function AccountPreferences() {
     onSuccess: (saved) => {
       qc.setQueryData(["account-preferences"], saved);
       toast.success("Preferences saved.");
-    },
-    onError: (e) => toast.error(e.message),
-  });
-  const sendCode = useMutation({
-    mutationFn: () => authApi.post("/auth/me/mfa/send-code"),
-    onSuccess: () => {
-      setCode("");
-      setMfaOpen(true);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-  const verify = useMutation({
-    mutationFn: () =>
-      authApi.post<AccountPreferencesData>("/auth/me/mfa/verify", {
-        code,
-        enabled: !data?.mfaEnabled,
-      }),
-    onSuccess: (saved) => {
-      qc.setQueryData(["account-preferences"], saved);
-      setMfaOpen(false);
-      toast.success(
-        saved.mfaEnabled ? "Demo MFA enabled." : "Demo MFA disabled.",
-      );
     },
     onError: (e) => toast.error(e.message),
   });
@@ -80,25 +54,6 @@ export function AccountPreferences() {
         <CardTitle className="text-[15px]">Account preferences</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">
-              Multi-factor authentication (MFA)
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {data.mfaEnabled ? "Enabled" : "Disabled"} · Demo verification
-              uses 123456.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={sendCode.isPending}
-            onClick={() => sendCode.mutate()}
-          >
-            {data.mfaEnabled ? "Disable" : "Set up"}
-          </Button>
-        </div>
         <div className="flex items-center justify-between gap-3">
           <label htmlFor="inactivity" className="text-sm font-medium">
             Inactivity timeout
@@ -171,35 +126,6 @@ export function AccountPreferences() {
             Copy link
           </Button>
         </div>
-        <Dialog open={mfaOpen} onOpenChange={setMfaOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {data.mfaEnabled ? "Disable MFA" : "Set up MFA"}
-              </DialogTitle>
-            </DialogHeader>
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                verify.mutate();
-              }}
-            >
-              <TextField
-                label="Verification code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                hint="Local demo code: 123456. No email or SMS is sent."
-              />
-              <Button disabled={verify.isPending} type="submit">
-                Verify
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
         <Dialog open={revokeOpen} onOpenChange={setRevokeOpen}>
           <DialogContent>
             <DialogHeader>

@@ -1,20 +1,19 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { useAuth } from "@/contexts/DoctorAuthContext";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-/**
- * Individual account tabs stay consistent on every route. Clinic management
- * remains available through the sidebar; front desk logins retain clinic tabs.
- */
+/** Keep shared settings tabs in the account or clinic section they came from. */
 export function SettingsLayout() {
-  const { user } = useAuth();
-  const isDesk = user?.role === "receptionist";
-  const clinicTabs = isDesk;
+  const { pathname, state } = useLocation();
+  const isClinic = ["/settings/clinic", "/settings/doctors", "/settings/staff"].includes(pathname)
+    || (["/settings/subscription", "/settings/contact"].includes(pathname)
+      && state?.settingsSection === "clinic");
+  const settingsSection = isClinic ? "clinic" : "account";
 
   const tabs = [
-    { to: "/settings/account", label: "Account & security" },
-    ...(clinicTabs ? [{ to: "/settings/clinic", label: "Clinic" }, { to: "/settings/doctors", label: "Doctors" }] : []),
-    ...(!isDesk ? [{ to: "/settings/subscription", label: "Subscription" }] : []),
+    isClinic
+      ? { to: "/settings/clinic", label: "Clinic Details" }
+      : { to: "/settings/account", label: "Account & security" },
+    { to: "/settings/subscription", label: "Subscription" },
     { to: "/settings/contact", label: "Contact us" },
   ];
 
@@ -26,6 +25,7 @@ export function SettingsLayout() {
           <NavLink
             key={t.to}
             to={t.to}
+            state={{ settingsSection }}
             className={({ isActive }) =>
               cn(
                 "border-b-2 px-3 py-2 text-[13px] font-medium transition-colors",
