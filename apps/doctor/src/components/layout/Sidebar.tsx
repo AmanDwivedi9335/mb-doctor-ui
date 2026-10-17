@@ -134,13 +134,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="scroll-area flex-1 overflow-y-auto px-3 pb-2">
-        {/* The desk has no Consultation group, so its Dashboard (its home) stays up top. */}
+        {/* The desk opens appointments as its home. */}
         {isDesk && (
           <Row
             icon={LayoutGrid}
-            label="Dashboard"
-            to="/"
-            active={pathname === "/"}
+            label="Home"
+            to="/appointments"
+            active={pathname === "/appointments"}
             onNavigate={onNavigate}
           />
         )}
@@ -166,7 +166,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               aria-pressed={selectedMode === "clinic"}
               onClick={() => {
                 setMode("clinic");
-                navigate("/dashboard");
+                navigate("/appointments");
                 onNavigate?.();
               }}
             >
@@ -357,11 +357,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Log out, pinned */}
       <div className="flex flex-col gap-0.5 border-t border-sidebar-accent px-3 py-3">
-        {/* Solid red, full width: same as the patient app's sidebar. */}
+        {/* Pastel red logout action. */}
         <Button
           size="sm"
           variant="destructive"
-          className="mt-1 w-full"
+          className="mt-1 w-full bg-red-100 text-red-800 hover:bg-red-200"
           onClick={async () => {
             onNavigate?.();
             await logout();

@@ -198,6 +198,7 @@ export interface Appointment {
   time: string; // ISO datetime
   reason: string;
   status: "waiting" | "in-progress" | "completed" | "cancelled";
+  doctorId?: string;
   tokenNumber?: number | null;
   doctorName?: string;
   bookedBy?: string;
@@ -351,7 +352,19 @@ export interface Staff {
   active: boolean;
 }
 
-export interface FrontDesk {
+export interface StaffProfile {
+  email: string;
+  dob: string;
+  gender: string;
+  phone: string;
+  address: string;
+  aadhaar: string;
+  pan: string;
+  nextOfKin: string;
+  emergencyContact: string;
+}
+
+export interface FrontDesk extends Partial<StaffProfile> {
   id: string;
   username: string | null;
   name: string;

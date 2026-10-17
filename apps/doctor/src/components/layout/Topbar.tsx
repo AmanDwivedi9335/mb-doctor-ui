@@ -55,7 +55,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             value={activeClinicId ?? ""}
             onChange={(e) => {
               setActiveClinic(e.target.value || null);
-              navigate("/");
+              navigate(e.target.value || isDesk ? "/appointments" : "/");
             }}
             className="max-w-[14rem] bg-transparent pr-1 font-medium outline-none"
           >
@@ -108,6 +108,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
               <HelpCircle /> Help &amp; Tutorial
             </DropdownMenuItem>
             <DropdownMenuItem
+              className="bg-red-100 text-red-800 focus:bg-red-200 focus:text-red-900"
               onSelect={async () => {
                 await logout();
                 navigate("/login");

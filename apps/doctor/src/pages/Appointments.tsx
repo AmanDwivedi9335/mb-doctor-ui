@@ -3,7 +3,7 @@ import { clinicHoursOn } from "@/lib/profile-settings";
 import { format } from "date-fns";
 import { Plus, Loader2, Search } from "lucide-react";
 import { useAuth } from "@/contexts/DoctorAuthContext";
-import { useAppointmentLookup, useBookAppointment, useClinicDoctors, useClinicProfile, useClinicQr } from "@/hooks/use-api";
+import { useAppointmentLookup, useBookAppointment, useClinicDoctors, useClinicProfile, useClinicQr, useUpdateAppointment } from "@/hooks/use-api";
 import { ApiError } from "@myanodex/shared/api-client";
 import { useForm } from "@/hooks/use-form";
 import { AppointmentsTable } from "@/pages/stubs";
@@ -76,7 +76,7 @@ type Booked = Appointment & { payment?: { amount: number; mode: string; paid: bo
  * doctor books for themselves; the clinic's owner and the front desk book for
  * any doctor at the clinic. A member doctor sees only their own queue.
  */
-export function Appointments() {
+export function Appointments({ paged = false }: { paged?: boolean }) {
   const { user, activeClinicId } = useAuth();
   const clinic = user?.clinics.find((c) => c.id === activeClinicId);
   const isDesk = user?.role === "receptionist";
@@ -87,6 +87,8 @@ export function Appointments() {
   const { data: profile } = useClinicProfile(canBook && !!activeClinicId);
   const qr = useClinicQr(activeClinicId, !!profile?.qrUrl);
   const book = useBookAppointment();
+  const update = useUpdateAppointment();
+  const [editing, setEditing] = useState<Appointment | null>(null);
   const [open, setOpen] = useState(false);
   const [booked, setBooked] = useState<Booked | null>(null);
   const { f, setF, setForm, seed } = useForm(EMPTY);
@@ -122,29 +124,31 @@ export function Appointments() {
     if (f.id.trim() && !key) return toast.error("Enter a valid 14-digit MID or phone number.");
     if (lookup.isFetching) return toast.error("Wait for the patient search to finish.");
     if (people.length && !hit) return toast.error("Select the patient this appointment is for.");
-    if (!mid && !f.name.trim()) return toast.error("Enter the patient's name.");
+    if (!f.name.trim()) return toast.error("Enter the patient's name.");
     const fee = f.fee.trim() ? Number(f.fee) : 0;
     if (f.fee.trim() && !(fee > 0)) return toast.error("Consultation fee must be a positive amount.");
     // No doctor picked = the caller themselves (the owner, for a desk).
-    const doctorId = accepted.find((d) => d.name === f.doctorId)?.id;
+    const doctorId = accepted.find((d) => d.name === f.doctorId)?.id ?? editing?.doctorId;
     const payment = fee > 0 ? { amount: fee, mode: f.mode, paid: f.paid === "Paid", reference: f.mode === "UPI" ? f.reference.trim() || undefined : undefined } : undefined;
     try {
-      const appt = await book.mutateAsync({
+      const body = {
         doctorId,
         mid,
         chartId: mid ? undefined : hit?.chartId,
-        patient: mid ? undefined : { name: f.name.trim(), phone: f.phone.trim() || undefined, gender: (f.gender || undefined) as Gender | undefined },
+        patient: { name: f.name.trim(), phone: f.phone.trim() || undefined, gender: (f.gender || undefined) as Gender | undefined },
         date: `${f.date}T${f.time}:00`,
         reason: f.reason.trim() || undefined,
         payment,
         vitals: f.vitals,
-      });
+      };
+      const appt = editing ? await update.mutateAsync({ ...body, id: editing.id }) : await book.mutateAsync(body);
       seed({ ...EMPTY, date: today() });
       setHit(null);
       setSearchKey(null);
-      setBooked({ ...appt, payment });
+      if (editing) { setOpen(false); setEditing(null); toast.success("Appointment updated."); }
+      else setBooked({ ...appt, payment });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not book.");
+      toast.error(err instanceof ApiError ? err.message : editing ? "Could not update appointment." : "Could not book.");
     }
   }
 
@@ -166,12 +170,17 @@ export function Appointments() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Scheduled appointments{clinic ? ` at ${clinic.name}` : ""}</h2>
         {canBook && (
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={() => { setEditing(null); seed({ ...EMPTY, date: today() }); setHit(null); setSearchKey(null); setOpen(true); }}>
             <Plus /> Book Appointment
           </Button>
         )}
       </div>
-      <AppointmentsTable />
+      <AppointmentsTable paged={paged} onEdit={(a) => {
+        setEditing(a); setBooked(null); setSearchKey(null);
+        setHit(a.mid ? { mid: a.mid, chartId: "", doctorId: a.doctorId ?? "", name: a.patientName, phone: a.patient?.phone ?? "", gender: a.patient?.gender ?? null } : null);
+        seed({ ...EMPTY, id: a.mid ?? "", name: a.patientName, phone: a.patient?.phone ?? "", gender: a.patient?.gender ?? "", doctorId: a.doctorName ?? "", date: format(new Date(a.time), "yyyy-MM-dd"), time: format(new Date(a.time), "HH:mm"), reason: a.reason, vitals: a.vitals ?? {}, fee: a.payment ? String(a.payment.amount) : "", mode: a.payment?.mode ?? "UPI", paid: a.payment?.paid ? "Paid" : "Unpaid", reference: a.payment?.reference ?? "" });
+        setOpen(true);
+      }} />
 
       <Dialog
         open={open}
@@ -204,7 +213,7 @@ export function Appointments() {
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Book an appointment</DialogTitle>
+                <DialogTitle>{editing ? "Update appointment details" : "Book an appointment"}</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-5">
                 <form id="book-form" onSubmit={save} className="flex flex-col gap-3">
@@ -237,9 +246,9 @@ export function Appointments() {
                   )}
                   {!detailsFromMediBank && (
                     <>
-                      <TextField label="Patient name" value={f.name} onChange={(e) => setF("name", e.target.value)} readOnly={!!mid} />
+                      <TextField label="Patient name" value={f.name} onChange={(e) => setF("name", e.target.value)}  />
                       <div className="grid grid-cols-2 gap-3">
-                        <TextField label="Phone" value={f.phone} onChange={(e) => setF("phone", e.target.value)} readOnly={!!mid} inputMode="tel" />
+                        <TextField label="Phone" value={f.phone} onChange={(e) => setF("phone", e.target.value)}  inputMode="tel" />
                         <SelectField label="Sex at birth" value={f.gender} onValueChange={(v) => setF("gender", v)} options={["Male", "Female", "Other"]} placeholder="Select" />
                       </div>
                     </>
@@ -254,8 +263,8 @@ export function Appointments() {
                     />
                   )}
                   <div className="grid grid-cols-2 gap-3">
-                    <TextField label="Date" type="date" value={f.date} onChange={(e) => setF("date", e.target.value)} />
-                    <TextField label="Time" type="time" value={f.time} onChange={(e) => setF("time", e.target.value)} />
+                    <TextField label="Date" required type="date" value={f.date} onChange={(e) => setF("date", e.target.value)} />
+                    <TextField label="Time" required type="time" value={f.time} onChange={(e) => setF("time", e.target.value)} />
                   </div>
                   <TextField label="Chief complaint" value={f.reason} onChange={(e) => setF("reason", e.target.value)} placeholder="Fever, follow-up..." />
                   <fieldset className="rounded-lg border p-3">
@@ -300,7 +309,7 @@ export function Appointments() {
                 <DialogClose asChild>
                   <Button type="button" variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button type="submit" form="book-form" disabled={book.isPending}>{book.isPending ? "Booking..." : "Book"}</Button>
+                <Button type="submit" form="book-form" disabled={book.isPending || update.isPending}>{book.isPending || update.isPending ? "Saving..." : editing ? "Update appointment" : "Book appointment"}</Button>
               </DialogFooter>
             </>
           )}

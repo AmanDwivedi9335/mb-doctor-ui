@@ -84,7 +84,7 @@ export function WalkIn() {
 
       <div className="rounded-lg border bg-card p-5">
         <h3 className="mb-4 text-[15px] font-semibold">Consultation</h3>
-        <DiagnosisForm initialValues={{ name: appointment?.reason ?? "", vitals: appointment?.vitals ?? {} }} onSubmit={save} pending={create.isPending} submitLabel="Save and print Rx" summaryOption={false} />
+        <DiagnosisForm showIcdSection={false} initialValues={{ name: appointment?.reason ?? "", vitals: appointment?.vitals ?? {} }} onSubmit={save} pending={create.isPending} submitLabel="Save and print Rx" summaryOption={false} />
       </div>
     </div>
   );

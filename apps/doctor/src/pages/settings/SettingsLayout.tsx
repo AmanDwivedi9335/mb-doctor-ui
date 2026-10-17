@@ -20,7 +20,7 @@ export function SettingsLayout() {
   return (
     <div className="flex flex-col gap-5">
       <h2 className="text-xl font-semibold">Settings</h2>
-      <div className="flex flex-wrap gap-1 border-b">
+      {!["/settings/doctors", "/settings/staff"].includes(pathname) && <div className="flex flex-wrap gap-1 border-b">
         {tabs.map((t) => (
           <NavLink
             key={t.to}
@@ -36,7 +36,7 @@ export function SettingsLayout() {
             {t.label}
           </NavLink>
         ))}
-      </div>
+      </div>}
       <Outlet />
     </div>
   );

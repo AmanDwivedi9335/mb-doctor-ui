@@ -15,9 +15,32 @@ for (const path of ["/patients", "/diagnosis", "/procedures", "/reports", "/heal
 }
 const session = await authApi.post<{ user: { name: string } }>("/auth/login", { identifier: "demo", password: "demo", role: "doctor" });
 assert.ok(session.user.name);
-const appointment = await api.post<{ id: string }>("/appointments", { date: "2026-10-07", patient: { name: "Demo visitor" } });
+const appointment = await api.post<{ id: string }>("/appointments", { date: new Date().toLocaleDateString("sv-SE") + "T10:00:00", patient: { name: "Demo visitor" } });
 await api.patch(`/appointments/${appointment.id}`, { status: "completed" });
 assert.ok((await api.get<{ appointments: { id: string; status: string }[] }>("/appointments")).appointments.some((a) => a.id === appointment.id && a.status === "completed"));
+// Appointment editing preserves identity, fills missing details, and respects the selected date.
+for (const status of ["waiting", "in-progress", "completed", "cancelled"]) {
+  const updated = await api.patch<{ status: string }>(`/appointments/${appointment.id}`, { status });
+  assert.equal(updated.status, status);
+}
+const moved = await api.patch<{ time: string; patientName: string; patient: { phone: string }; payment: { paid: boolean } }>(`/appointments/${appointment.id}`, {
+  date: "2030-01-15T11:30:00", patient: { name: "Updated visitor", phone: "9876543210", gender: "Female" },
+  reason: "Follow-up", vitals: { bloodPressure: "120/80" }, payment: { amount: 500, mode: "Cash", paid: false },
+});
+assert.equal(moved.time, "2030-01-15T11:30:00");
+assert.equal(moved.patientName, "Updated visitor");
+assert.equal(moved.patient.phone, "9876543210");
+assert.equal(moved.payment.paid, false);
+assert.ok(!(await api.get<{ appointments: { id: string }[] }>("/appointments")).appointments.some((a) => a.id === appointment.id));
+assert.ok((await api.get<{ appointments: { id: string }[] }>("/appointments?date=2030-01-15")).appointments.some((a) => a.id === appointment.id));
+const staff = { name: "Reception staff", username: "reception.staff", email: "staff@example.com", dob: "1995-01-01", gender: "Female", phone: "9876543210", address: "Clinic Road", aadhaar: "123456789012", pan: "ABCDE1234F", nextOfKin: "Family member", emergencyContact: "9876543211" };
+const added = await api.post<{ id: string }>("/front-desk", { ...staff, password: "demo" });
+const edited = await api.post<{ id: string; address: string; password?: string }>("/front-desk", { ...staff, address: "Updated address" });
+assert.equal(edited.id, added.id);
+assert.equal(edited.address, "Updated address");
+assert.equal(edited.password, undefined);
+await api.delete("/front-desk");
+assert.equal((await api.get<{ frontDesk: unknown }>("/front-desk")).frontDesk, null);
 const file = new FormData();
 file.append("file", new Blob(["demo report"], { type: "text/plain" }), "demo.txt");
 file.append("mid", consentedMid);

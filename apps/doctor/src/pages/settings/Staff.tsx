@@ -1,123 +1,57 @@
 import { useState } from "react";
-import { KeyRound, Trash2 } from "lucide-react";
-import { format } from "date-fns";
 import { useFrontDesk, useUpsertFrontDesk, useDeleteFrontDesk } from "@/hooks/use-api";
-import { ApiError } from "@myanodex/shared/api-client";
 import { useForm } from "@/hooks/use-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { TextField } from "@/components/form/FormKit";
+import { TextField, SelectField } from "@/components/form/FormKit";
 import { toast } from "@/components/ui/sonner";
+import { todayKey } from "@/lib/dates";
 
-/**
- * The front desk: one login per doctor account (Pro). It signs in with its
- * own username, sees every clinic this doctor owns, books appointments and
- * raises invoices, and never opens a patient's records.
- */
+const empty = { name: "", username: "", email: "", dob: "", gender: "", phone: "", address: "", aadhaar: "", pan: "", nextOfKin: "", emergencyContact: "", oldPassword: "", password: "", confirmPassword: "" };
 export function Staff() {
   const { data, isLoading } = useFrontDesk();
   const upsert = useUpsertFrontDesk();
   const remove = useDeleteFrontDesk();
-  const [resetOpen, setResetOpen] = useState(false);
-  const { f, setF, seed } = useForm({ name: "", username: "", password: "" });
-
-  const desk = data?.frontDesk ?? null;
-
+  const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { f, setF, seed } = useForm(empty);
+  const desk = data?.frontDesk;
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const name = f.name.trim() || desk?.name || "";
-    const username = f.username.trim().toLowerCase() || desk?.username || "";
-    if (!name || !username || !f.password) return toast.error("Name, username and password are required.");
+    if (f.password !== f.confirmPassword) return toast.error("Passwords do not match.");
+    if (desk && f.password && !f.oldPassword) return toast.error("Enter the old password to change the password.");
+    if (!desk && !f.password) return toast.error("Password is required.");
+    if (f.aadhaar && !/^\d{12}$/.test(f.aadhaar)) return toast.error("Aadhaar must have 12 digits.");
+    if (f.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(f.pan)) return toast.error("Enter a valid PAN.");
     try {
-      await upsert.mutateAsync({ name, username, password: f.password });
-      toast.success(desk ? "Password reset. The desk is signed out everywhere." : "Front desk login created.");
-      seed({ name: "", username: "", password: "" });
-      setResetOpen(false);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not save.");
-    }
+      const { confirmPassword, password, oldPassword, ...profile } = f;
+      await upsert.mutateAsync({ ...profile, name: f.name.trim(), username: f.username.trim().toLowerCase(), ...(password ? { password, oldPassword } : {}) });
+      setOpen(false); seed(empty); toast.success(desk ? "Staff updated." : "Staff added.");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Could not save staff."); }
   }
-
   if (isLoading) return <Skeleton className="h-48" />;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        A front desk login for your reception. It can book appointments, raise invoices, invite doctors and see clinic
-        statistics for every clinic you own. It cannot open patient records or change your payment QR or UPI ID.
-      </p>
-
-      {desk ? (
-        <Card>
-          <CardHeader className="flex-row items-start justify-between space-y-0">
-            <div>
-              <CardTitle className="text-[15px]">{desk.name}</CardTitle>
-              <div className="text-[13px] text-muted-foreground">
-                Username <span className="font-mono">{desk.username}</span>
-                {desk.lastLogin ? ` · last signed in ${format(new Date(desk.lastLogin), "d MMM yyyy")}` : " · never signed in"}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
-                <KeyRound /> Reset password
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Remove front desk"
-                onClick={() =>
-                  remove.mutate(undefined, {
-                    onSuccess: () => toast.success("Front desk login removed."),
-                    onError: () => toast.error("Could not remove."),
-                  })
-                }
-              >
-                <Trash2 className="text-destructive" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="text-[13px] text-muted-foreground">
-            The desk signs in on the login page with the Front desk toggle, using this username and its password.
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-[15px]">Create the front desk login</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={save} className="flex flex-col gap-3">
-              <TextField label="Display name" value={f.name} onChange={(e) => setF("name", e.target.value)} placeholder="Reception" autoFocus />
-              <div className="grid grid-cols-2 gap-3">
-                <TextField label="Username" hint="Letters, numbers, dots or underscores" value={f.username} onChange={(e) => setF("username", e.target.value)} placeholder="mehta.desk" />
-                <TextField label="Password" type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF("password", e.target.value)} />
-              </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Creating..." : "Create login"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset the front desk password</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={save} className="flex flex-col gap-3">
-            <TextField label="New password" type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF("password", e.target.value)} autoFocus />
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button type="submit" disabled={upsert.isPending}>{upsert.isPending ? "Saving..." : "Reset password"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  return <div className="flex flex-col gap-4">
+    <div className="flex items-center justify-between"><h3 className="font-semibold">Front desk staff</h3><Button disabled={!!desk} onClick={() => { seed(empty); setOpen(true); }}>Add staff</Button></div>
+    <p className="text-sm text-muted-foreground">One front desk login is available per doctor account. Staff can manage appointments and billing.</p>
+    {desk ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-5"><div><p className="font-semibold">{desk.name}</p><p className="text-sm text-muted-foreground">{desk.email || desk.username}</p><p className="text-sm">{desk.phone}</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => { seed({ ...empty, ...desk, username: desk.username ?? "", oldPassword: "", password: "", confirmPassword: "" }); setOpen(true); }}>Edit staff</Button><Button variant="outline" className="text-destructive" onClick={() => setDeleting(true)}>Delete staff</Button></div></div> : <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No staff added yet.</p>}
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="left-auto right-0 top-0 flex h-dvh max-h-dvh w-full max-w-xl translate-x-0 translate-y-0 flex-col overflow-y-auto rounded-none"><DialogHeader><DialogTitle>{desk ? "Edit staff" : "Add staff"}</DialogTitle></DialogHeader>
+      <form onSubmit={save} className="flex flex-col gap-3">
+        <TextField label="Name" required value={f.name} onChange={(e) => setF("name", e.target.value)} />
+        <TextField label="Username" required value={f.username} onChange={(e) => setF("username", e.target.value)} />
+        <TextField label="Email" type="email" required value={f.email} onChange={(e) => setF("email", e.target.value)} />
+        <div className="grid grid-cols-2 gap-3"><TextField label="Date of birth" type="date" max={todayKey()} value={f.dob} onChange={(e) => setF("dob", e.target.value)} /><SelectField label="Gender" options={["Male", "Female", "Other"]} value={f.gender} onValueChange={(v) => setF("gender", v)} /></div>
+        <TextField label="Phone" type="tel" required value={f.phone} onChange={(e) => setF("phone", e.target.value)} />
+        <TextField label="Address" value={f.address} onChange={(e) => setF("address", e.target.value)} />
+        <fieldset className="grid grid-cols-2 gap-3 rounded-lg border p-3"><legend>KYC</legend><TextField label="Aadhaar" inputMode="numeric" maxLength={12} value={f.aadhaar} onChange={(e) => setF("aadhaar", e.target.value)} /><TextField label="PAN" maxLength={10} value={f.pan} onChange={(e) => setF("pan", e.target.value.toUpperCase())} /></fieldset>
+        <TextField label="Next of kin" value={f.nextOfKin} onChange={(e) => setF("nextOfKin", e.target.value)} />
+        <TextField label="Emergency contact" type="tel" value={f.emergencyContact} onChange={(e) => setF("emergencyContact", e.target.value)} />
+        {desk && <TextField label="Old password" type="password" autoComplete="current-password" value={f.oldPassword} onChange={(e) => setF("oldPassword", e.target.value)} />}
+        <TextField label={desk ? "New password" : "Password"} type="password" autoComplete="new-password" required={!desk} value={f.password} onChange={(e) => setF("password", e.target.value)} />
+        <TextField label="Confirm password" type="password" autoComplete="new-password" required={!!f.password} value={f.confirmPassword} onChange={(e) => setF("confirmPassword", e.target.value)} />
+        <DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><Button disabled={upsert.isPending} type="submit">{upsert.isPending ? "Saving..." : desk ? "Update staff" : "Add staff"}</Button></DialogFooter>
+      </form>
+    </DialogContent></Dialog>
+    <Dialog open={deleting} onOpenChange={setDeleting}><DialogContent><DialogHeader><DialogTitle>Delete {desk?.name}?</DialogTitle></DialogHeader><p className="text-sm">This removes the front desk login.</p><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate(undefined, { onSuccess: () => { setDeleting(false); toast.success("Staff deleted."); }, onError: () => toast.error("Could not delete staff.") })}>Delete staff</Button></DialogFooter></DialogContent></Dialog>
+  </div>;
 }

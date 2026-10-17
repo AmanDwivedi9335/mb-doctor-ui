@@ -270,7 +270,7 @@ export function useSaveSecurityAnswers() {
 export function useSetAppointmentStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "completed" | "waiting" }) => api.patch<{ id: string; status: Appointment["status"] }>(`/appointments/${id}`, { status }),
+    mutationFn: ({ id, status }: { id: string; status: Appointment["status"] }) => api.patch<{ id: string; status: Appointment["status"] }>(`/appointments/${id}`, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["doctor", "appointments"] });
       qc.invalidateQueries({ queryKey: ["doctor", "dashboard"] });
@@ -384,7 +384,7 @@ export function useFrontDesk() {
 export function useUpsertFrontDesk() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { username: string; password: string; name: string }) => api.post<Staff>("/front-desk", body),
+    mutationFn: (body: { username: string; password?: string; oldPassword?: string; name: string } & import("@/types").StaffProfile) => api.post<Staff>("/front-desk", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["doctor", "front-desk"] });
       qc.invalidateQueries({ queryKey: ["doctor", "clinic", "staff"] });
@@ -542,6 +542,17 @@ export function useCreateSummaryRow(kind: SummaryKind, mid: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["doctor", "summary", kind, mid] });
       if (kind === "allergies") qc.invalidateQueries({ queryKey: ["doctor", "patient", mid] });
+    },
+  });
+}
+
+export function useUpdateAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: AppointmentInput & { id: string }) => api.patch<Appointment>(`/appointments/${id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["doctor", "appointments"] });
+      qc.invalidateQueries({ queryKey: ["doctor", "dashboard"] });
     },
   });
 }

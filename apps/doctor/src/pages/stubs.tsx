@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/DoctorAuthContext";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -56,23 +57,29 @@ function DoneButton({ a }: { a: Appointment }) {
 }
 
 /** Today's appointments table. Rows with a MID open that patient's workspace. */
-export function AppointmentsTable({ paged = false }: { paged?: boolean }) {
+export function AppointmentsTable({ paged = false, onEdit }: { paged?: boolean; onEdit?: (a: Appointment) => void }) {
+  const { user } = useAuth();
+  const isDesk = user?.role === "receptionist";
+  const statusUpdate = useSetAppointmentStatus();
   const { data } = useAppointments();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Appointment | null>(null);
   function openPatient(a: Appointment) {
-    if (a.mid) navigate(`/patients/${a.mid}?requestConsent=1`);
+    if (isDesk) return;
+    if (a.mid) navigate(`/patients/${a.mid}?tab=summary&requestConsent=1`);
     else navigate("/walk-in", { state: { appointment: a } });
   }
   const appointmentColumns: Column<Appointment>[] = [
     { key: "serial", header: "Sl No.", render: (_, i) => i + 1 },
-    { key: "patient", header: "Name", render: (a) => <button className="font-medium text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.patientName}</button> },
-    { key: "mid", header: "MID", render: (a) => a.mid ? <button className="text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.mid}</button> : "—" },
+    { key: "patient", header: "Name", render: (a) => isDesk ? <span>{a.patientName}</span> : <button className="font-medium text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.patientName}</button> },
+    { key: "mid", header: "MID", render: (a) => a.mid ? isDesk ? <span>{a.mid}</span> : <button className="text-primary underline underline-offset-4" onClick={(e) => { e.stopPropagation(); openPatient(a); }}>{a.mid}</button> : "—" },
     { key: "date", header: "Date", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "dd MMM yyyy") },
     { key: "time", header: "Time", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "h:mm a") },
     { key: "bookedBy", header: "Booked by", render: (a) => a.bookedBy || "—" },
     { key: "status", header: "Status", render: (a) => <Badge variant={statusVariant[a.status]} className="capitalize">{a.status.replace("-", " ")}</Badge> },
     { key: "payment", header: "Payment", render: (a) => a.payment ? `${a.payment.paid ? "Paid" : "Unpaid"} · ₹${a.payment.amount} · ${a.payment.mode}` : "—" },
+    { key: "updateStatus", header: "Update status", render: (a) => <select aria-label={`Update status for ${a.patientName}`} className="rounded-md border bg-background p-2 text-sm" value={a.status} disabled={statusUpdate.isPending} onClick={(e) => e.stopPropagation()} onChange={(e) => statusUpdate.mutate({ id: a.id, status: e.target.value as Appointment["status"] }, { onSuccess: () => setSelected(null), onError: () => toast.error("Could not update status.") })}>{Object.keys(statusVariant).map((status) => <option key={status} value={status}>{status.replace("-", " ")}</option>)}</select> },
+    ...(onEdit ? [{ key: "edit", header: "Edit", render: (a: Appointment) => <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onEdit(a); }}>Update details</Button> }] : []),
     { key: "details", header: "Details", render: (a) => <Button size="icon" variant="ghost" aria-label={`View appointment for ${a.patientName}`} onClick={(e) => { e.stopPropagation(); setSelected(a); }}><ChevronRight /></Button> },
   ];
   return (
@@ -101,7 +108,7 @@ export function AppointmentsTable({ paged = false }: { paged?: boolean }) {
           <p>Payment: {selected.payment ? `${selected.payment.paid ? "Paid" : "Unpaid"} · ₹${selected.payment.amount} · ${selected.payment.mode}` : "—"}</p>
           {selected.payment?.reference && <p>Payment reference: {selected.payment.reference}</p>}
           {selected.vitals && <div className="grid grid-cols-2 gap-2 rounded-md border p-3">{VITAL_FIELDS.map((v) => <p key={v.key}>{v.label}: {selected.vitals?.[v.key] ? `${selected.vitals[v.key]} ${v.unit}` : "—"}</p>)}</div>}
-          <div className="flex justify-end gap-2"><DoneButton a={selected} /><Button onClick={() => openPatient(selected)}>{selected.mid ? "Open patient summary" : "Open walk-in Rx"}</Button></div>
+          <div className="flex justify-end gap-2"><DoneButton a={selected} />{!isDesk && <Button onClick={() => openPatient(selected)}>{selected.mid ? "Open patient summary" : "Open walk-in Rx"}</Button>}</div>
         </div>}
       </DialogContent>
     </Dialog>

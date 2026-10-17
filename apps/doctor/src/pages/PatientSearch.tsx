@@ -6,7 +6,7 @@ import { DataTable, type Column } from "@/components/clinical/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { AppointmentsTable } from "@/pages/stubs";
+import { Appointments } from "@/pages/Appointments";
 import { useAllFollowUps, useAppointments } from "@/hooks/use-api";
 import type { FollowUp } from "@/types";
 import { formatFollowUp } from "@/lib/dates";
@@ -151,7 +151,7 @@ export function PatientSearch() {
           </TabsList>
           <TabsContent value="today">
             {canSeeAppointments ? (
-              <AppointmentsTable paged />
+              <Appointments paged />
             ) : (
               <div className="space-y-3 p-6 text-sm">
                 <p>

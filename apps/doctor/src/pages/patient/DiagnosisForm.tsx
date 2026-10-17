@@ -74,6 +74,7 @@ export function DiagnosisForm({
   summaryOption = true,
   autoFocus,
   initialValues,
+  showIcdSection = true,
 }: {
   onSubmit: (v: DiagnosisFormValues) => void | Promise<void>;
   pending: boolean;
@@ -82,6 +83,7 @@ export function DiagnosisForm({
   summaryOption?: boolean;
   autoFocus?: boolean;
   initialValues?: Partial<DiagnosisFormValues>;
+  showIcdSection?: boolean;
 }) {
   const { f, setF } = useForm({ ...blankDiagnosis(), ...initialValues });
   const [sub, setSub] = useState<"meds" | "tests" | null>(null);
@@ -116,7 +118,7 @@ export function DiagnosisForm({
               placeholder="Eg. Stomach Pain"
               autoFocus={autoFocus}
             />
-            <div className="grid grid-cols-3 gap-3">
+            {showIcdSection && <div className="grid grid-cols-3 gap-3">
               <TextField label="ICD-10 code" value={f.code} onChange={(e) => setF("code", e.target.value)} placeholder="Optional" />
               <SelectField
                 label="Status"
@@ -125,7 +127,7 @@ export function DiagnosisForm({
                 options={DIAGNOSIS_STATUS_OPTIONS}
               />
               <TextField label="Date" type="date" value={f.date} onChange={(e) => setF("date", e.target.value)} />
-            </div>
+            </div>}
             <TextAreaField
               label="Clinical Notes"
               value={f.notes}

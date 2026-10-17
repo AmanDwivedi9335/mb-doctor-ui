@@ -35,10 +35,10 @@ import { Staff } from "@/pages/settings/Staff";
 import { Subscription } from "@/pages/settings/Subscription";
 import { ContactUs } from "@/pages/settings/ContactUs";
 
-/** Home: a doctor lands on Search MID; the front desk has no consultation, so it lands on the dashboard. */
+/** Home: a doctor lands on Search MID; the front desk opens appointments. */
 function Home() {
   const { user } = useAuth();
-  return user?.role === "receptionist" ? <Dashboard /> : <PatientSearch />;
+  return user?.role === "receptionist" ? <Navigate to="/appointments" replace /> : <PatientSearch />;
 }
 
 export default function App() {
