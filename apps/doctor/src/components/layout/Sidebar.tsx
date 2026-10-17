@@ -361,7 +361,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Button
           size="sm"
           variant="destructive"
-          className="mt-1 w-full bg-red-100 text-red-800 hover:bg-red-200"
+          className="mt-1 w-full bg-red-300 text-white hover:bg-red-400"
           onClick={async () => {
             onNavigate?.();
             await logout();
