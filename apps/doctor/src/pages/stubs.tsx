@@ -2,16 +2,16 @@ import { useAuth } from "@/contexts/DoctorAuthContext";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Check, Construction, ChevronRight } from "lucide-react";
-import { useAppointments, useSetAppointmentStatus } from "@/hooks/use-api";
-import { ApiError } from "@myanodex/shared/api-client";
-import { toast } from "@/components/ui/sonner";
+import { Construction } from "lucide-react";
+import { useAppointments, useClinicProfile } from "@/hooks/use-api";
 import { DataTable, type Column } from "@/components/clinical/DataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VITAL_FIELDS } from "@/lib/diagnosis";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Appointment } from "@/types";
+import { useAppointmentUi } from "@/hooks/use-appointment-ui";
+import { appointmentUiStatus, appointmentStatusVariant } from "@/lib/appointment-status";
 
 /** Clean placeholder for anything not built yet. Honest, not a spinner. */
 export function Placeholder({ title, note }: { title: string; note: string }) {
@@ -26,41 +26,13 @@ export function Placeholder({ title, note }: { title: string; note: string }) {
   );
 }
 
-const statusVariant: Record<Appointment["status"], "default" | "primary" | "success" | "warning"> = {
-  waiting: "warning",
-  "in-progress": "primary",
-  completed: "success",
-  cancelled: "default",
-};
-
-/** Done / Undo on one appointment. Stops the click: the row itself opens the patient. */
-function DoneButton({ a }: { a: Appointment }) {
-  const set = useSetAppointmentStatus();
-  if (a.status === "cancelled") return null;
-  const done = a.status === "completed";
-  return (
-    <Button
-      size="sm"
-      variant={done ? "ghost" : "outline"}
-      disabled={set.isPending}
-      onClick={(e) => {
-        e.stopPropagation();
-        set.mutate(
-          { id: a.id, status: done ? "waiting" : "completed" },
-          { onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not update the appointment.") }
-        );
-      }}
-    >
-      {done ? "Undo" : <><Check /> Done</>}
-    </Button>
-  );
-}
-
 /** Today's appointments table. Rows with a MID open that patient's workspace. */
 export function AppointmentsTable({ paged = false, onEdit }: { paged?: boolean; onEdit?: (a: Appointment) => void }) {
-  const { user } = useAuth();
+  const { user, activeClinicId } = useAuth();
   const isDesk = user?.role === "receptionist";
-  const statusUpdate = useSetAppointmentStatus();
+  const { data: clinicProfile } = useClinicProfile(!!activeClinicId);
+  const { statuses, now } = useAppointmentUi();
+  const statusFor = (a: Appointment) => appointmentUiStatus(a, now, clinicProfile, statuses[a.id]);
   const { data } = useAppointments();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Appointment | null>(null);
@@ -76,11 +48,12 @@ export function AppointmentsTable({ paged = false, onEdit }: { paged?: boolean; 
     { key: "date", header: "Date", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "dd MMM yyyy") },
     { key: "time", header: "Time", className: "whitespace-nowrap", render: (a) => format(new Date(a.time), "h:mm a") },
     { key: "bookedBy", header: "Booked by", render: (a) => a.bookedBy || "—" },
-    { key: "status", header: "Status", render: (a) => <Badge variant={statusVariant[a.status]} className="capitalize">{a.status.replace("-", " ")}</Badge> },
+    { key: "status", header: "Status", render: (a) => <Badge variant={appointmentStatusVariant[statusFor(a)]} className="whitespace-nowrap">{statusFor(a)}</Badge> },
     { key: "payment", header: "Payment", render: (a) => a.payment ? `${a.payment.paid ? "Paid" : "Unpaid"} · ₹${a.payment.amount} · ${a.payment.mode}` : "—" },
-    { key: "updateStatus", header: "Update status", render: (a) => <select aria-label={`Update status for ${a.patientName}`} className="rounded-md border bg-background p-2 text-sm" value={a.status} disabled={statusUpdate.isPending} onClick={(e) => e.stopPropagation()} onChange={(e) => statusUpdate.mutate({ id: a.id, status: e.target.value as Appointment["status"] }, { onSuccess: () => setSelected(null), onError: () => toast.error("Could not update status.") })}>{Object.keys(statusVariant).map((status) => <option key={status} value={status}>{status.replace("-", " ")}</option>)}</select> },
-    ...(onEdit ? [{ key: "edit", header: "Edit", render: (a: Appointment) => <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onEdit(a); }}>Update details</Button> }] : []),
-    { key: "details", header: "Details", render: (a) => <Button size="icon" variant="ghost" aria-label={`View appointment for ${a.patientName}`} onClick={(e) => { e.stopPropagation(); setSelected(a); }}><ChevronRight /></Button> },
+    { key: "details", header: "Details", render: (a) => <div className="flex items-center gap-2 whitespace-nowrap">
+      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setSelected(a); }}>Details</Button>
+      {onEdit && <Button size="sm" onClick={(e) => { e.stopPropagation(); onEdit(a); }}>Update Details</Button>}
+    </div> },
   ];
   return (
     <>
@@ -104,11 +77,11 @@ export function AppointmentsTable({ paged = false, onEdit }: { paged?: boolean; 
           <p>Booked by: {selected.bookedBy || "—"}</p>
           <p>Doctor: {selected.doctorName || "—"}</p>
           <p>Chief complaint: {selected.reason || "—"}</p>
-          <p className="capitalize">Status: {selected.status.replace("-", " ")}</p>
+          <p className="capitalize">Status: {statusFor(selected)}</p>
           <p>Payment: {selected.payment ? `${selected.payment.paid ? "Paid" : "Unpaid"} · ₹${selected.payment.amount} · ${selected.payment.mode}` : "—"}</p>
           {selected.payment?.reference && <p>Payment reference: {selected.payment.reference}</p>}
           {selected.vitals && <div className="grid grid-cols-2 gap-2 rounded-md border p-3">{VITAL_FIELDS.map((v) => <p key={v.key}>{v.label}: {selected.vitals?.[v.key] ? `${selected.vitals[v.key]} ${v.unit}` : "—"}</p>)}</div>}
-          <div className="flex justify-end gap-2"><DoneButton a={selected} />{!isDesk && <Button onClick={() => openPatient(selected)}>{selected.mid ? "Open patient summary" : "Open walk-in Rx"}</Button>}</div>
+          <div className="flex justify-end gap-2">{!isDesk && <Button onClick={() => openPatient(selected)}>{selected.mid ? "Open patient summary" : "Open walk-in Rx"}</Button>}</div>
         </div>}
       </DialogContent>
     </Dialog>

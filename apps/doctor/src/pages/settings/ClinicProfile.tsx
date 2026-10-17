@@ -5,9 +5,9 @@ import {
   useClinicProfile,
   useUpdateClinicProfile,
   useCreateClinic,
-  useUploadClinicImage,
   useClinicQr,
 } from "@/hooks/use-api";
+import { useLocalClinicQr } from "@/hooks/use-appointment-ui";
 import { ApiError } from "@myanodex/shared/api-client";
 import { useForm } from "@/hooks/use-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -228,9 +228,13 @@ function EditClinic() {
     user.clinics.find((c) => c.id === activeClinicId)?.role === "owner";
   const canEdit = isOwner || user?.role === "receptionist";
   const { data, isLoading, error } = useClinicProfile();
-  const qr = useClinicQr(activeClinicId, !!data?.qrUrl);
+  const existingQr = useClinicQr(activeClinicId, !!data?.qrUrl);
+  const [localQr, saveLocalQr] = useLocalClinicQr(activeClinicId);
+  const qr = localQr || existingQr;
+  const [readingQr, setReadingQr] = useState(false);
+  const qrReader = useRef<FileReader | null>(null);
+  useEffect(() => () => { qrReader.current?.abort(); qrReader.current = null; }, []);
   const update = useUpdateClinicProfile();
-  const uploadQr = useUploadClinicImage("qr-code");
   const qrInput = useRef<HTMLInputElement>(null);
   const { f, seed, setF, dirty } = useForm(EMPTY);
 
@@ -286,26 +290,34 @@ function EditClinic() {
     }
   }
 
-  const pick =
-    (m: typeof uploadQr) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file) return;
-      if (
-        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
-        file.size > 2 * 1024 * 1024
-      ) {
-        toast.error("Choose a PNG, JPG or WebP image up to 2 MB.");
-        return;
-      }
-      const form = new FormData();
-      form.append("file", file, file.name);
-      m.mutate(form, {
-        onSuccess: () => toast.success("Uploaded."),
-        onError: (err) =>
-          toast.error(err instanceof ApiError ? err.message : "Upload failed."),
-      });
+  function pickQr(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !isOwner) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      toast.error("Choose a PNG, JPG or WebP image up to 2 MB.");
+      return;
+    }
+    setReadingQr(true);
+    qrReader.current?.abort();
+    const reader = new FileReader();
+    qrReader.current = reader;
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        if (qrReader.current !== reader) return;
+        try {
+          saveLocalQr(String(reader.result));
+          toast.success("Payment QR saved in this browser.");
+        } catch { toast.error("Browser storage is unavailable or full. Try a smaller image."); }
+        setReadingQr(false);
+      };
+      image.onerror = () => { if (qrReader.current === reader) { setReadingQr(false); toast.error("This image could not be opened."); } };
+      image.src = String(reader.result);
     };
+    reader.onerror = () => { setReadingQr(false); toast.error("Could not read this image."); };
+    reader.readAsDataURL(file);
+  }
 
   if (error)
     return (
@@ -372,7 +384,7 @@ function EditClinic() {
                   onChange={(e) => setF("website", e.target.value)}
                 />
                 <TextField
-                  label="UPI ID"
+                  label="UPI ID (optional fallback)"
                   value={f.upiId}
                   onChange={(e) => setF("upiId", e.target.value)}
                   disabled={!isOwner}
@@ -384,7 +396,7 @@ function EditClinic() {
                 />
               </div>
               <section
-                className="grid grid-cols-2 items-start gap-4 border-t pt-4"
+                className="grid gap-4 border-t pt-4 sm:grid-cols-2"
                 aria-label="Branding and payment"
               >
                 <ClinicLogo />
@@ -393,15 +405,14 @@ function EditClinic() {
                     id="payment-qr-heading"
                     className="flex items-center gap-1.5 text-sm font-semibold"
                   >
-                    <QrCode className="size-4" /> Payment QR
+                    <QrCode className="size-4" /> Payment QR Code
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {data.qrUrl
-                      ? "Shown to patients when an appointment is booked."
-                      : "Not added yet. Shown to patients when an appointment is booked."}
+                    Upload a payment QR image to show during booking and appointment updates.
+                    Saved only in this browser for this clinic.
                   </p>
                   <div className="mt-3 flex flex-col items-start gap-3">
-                    <div className="flex h-20 w-28 items-center justify-center rounded-lg border bg-white p-2">
+                    <div className="flex size-44 items-center justify-center rounded-lg border bg-white p-2">
                       {qr ? (
                         <img
                           src={qr}
@@ -419,27 +430,30 @@ function EditClinic() {
                           type="file"
                           accept="image/png,image/jpeg,image/webp"
                           aria-label={
-                            data.qrUrl
+                            qr
                               ? "Change payment QR"
                               : "Upload payment QR"
                           }
                           className="sr-only"
-                          disabled={uploadQr.isPending}
-                          onChange={pick(uploadQr)}
+                          disabled={readingQr}
+                          onChange={pickQr}
                         />
                         <Button
                           type="button"
                           size="sm"
-                          disabled={uploadQr.isPending}
+                          disabled={readingQr}
                           onClick={() => qrInput.current?.click()}
                         >
                           <Upload />
-                          {uploadQr.isPending
-                            ? "Uploading..."
-                            : data.qrUrl
+                          {readingQr
+                            ? "Reading..."
+                            : qr
                               ? "Change QR"
                               : "Upload QR"}
                         </Button>
+                        {localQr && <Button type="button" size="sm" variant="outline" onClick={() => {
+                          try { saveLocalQr(null); } catch { toast.error("Could not reset the QR image in this browser."); }
+                        }}>Reset uploaded QR</Button>}
                         <span className="text-[11px] text-muted-foreground">
                           PNG, JPG or WebP · up to 2 MB
                         </span>

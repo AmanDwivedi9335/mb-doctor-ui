@@ -12,10 +12,12 @@ import { todayKey } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Field, TextField, SelectField } from "@/components/form/FormKit";
+import { TextField, SelectField } from "@/components/form/FormKit";
 import { toast } from "@/components/ui/sonner";
 import type { Appointment, AppointmentLookup, DiagnosisVitals, Gender } from "@/types";
 
+import { useAppointmentUi, useLocalClinicQr } from "@/hooks/use-appointment-ui";
+import { APPOINTMENT_STATUS_OPTIONS, appointmentUiStatus, type AppointmentUiStatus } from "@/lib/appointment-status";
 import { VITAL_FIELDS } from "@/lib/diagnosis";
 
 const today = todayKey;
@@ -29,28 +31,6 @@ function classify(raw: string): { kind: "mid" | "phone"; value: string } | null 
   let n = d.replace(/^0+/, "");
   if (n.length === 12 && n.startsWith("91")) n = n.slice(2);
   return /^[6-9]\d{9}$/.test(n) ? { kind: "phone", value: n } : null;
-}
-
-/** Radio pair styled as two buttons. */
-function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void }) {
-  return (
-    <Field label={label}>
-      <div role="radiogroup" aria-label={label} className="flex gap-2">
-        {options.map((o) => (
-          <label
-            key={o}
-            className={cn(
-              "flex flex-1 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
-              value === o ? "border-primary bg-primary/5 font-medium" : "hover:bg-muted/50"
-            )}
-          >
-            <input type="radio" name={label} value={o} checked={value === o} onChange={() => onChange(o)} className="accent-primary" />
-            {o}
-          </label>
-        ))}
-      </div>
-    </Field>
-  );
 }
 
 const EMPTY = {
@@ -85,13 +65,18 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
   const { data: doctors } = useClinicDoctors(pickDoctor);
   // The clinic's payment QR, beside the form so the patient can pay while it is filled in.
   const { data: profile } = useClinicProfile(canBook && !!activeClinicId);
-  const qr = useClinicQr(activeClinicId, !!profile?.qrUrl);
+  const existingQr = useClinicQr(activeClinicId, !!profile?.qrUrl);
+  const [localQr] = useLocalClinicQr(activeClinicId);
+  const qr = localQr || existingQr;
+  const { statuses, now, saveStatus } = useAppointmentUi();
+  const [statusChanged, setStatusChanged] = useState(false);
+  const [appointmentStatus, setAppointmentStatus] = useState<AppointmentUiStatus>("Upcoming");
   const book = useBookAppointment();
   const update = useUpdateAppointment();
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [open, setOpen] = useState(false);
   const [booked, setBooked] = useState<Booked | null>(null);
-  const { f, setF, setForm, seed } = useForm(EMPTY);
+  const { f, setF, setForm, seed, dirty } = useForm(EMPTY);
 
   const accepted = pickDoctor ? (doctors?.doctors ?? []).filter((d) => d.active) : [];
 
@@ -116,6 +101,15 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    // Status-only changes belong solely to the frontend demo layer.
+    if (editing && statusChanged && !dirty) {
+      try {
+        saveStatus(editing.id, { status: appointmentStatus, appointmentTime: editing.time });
+        setOpen(false); setEditing(null);
+        toast.success("Appointment status saved in this browser.");
+      } catch { toast.error("The browser could not save the status selection."); }
+      return;
+    }
     if (profile) {
       const hours = clinicHoursOn(profile, f.date);
       if (hours.closed) return toast.error("The clinic is closed on this date.");
@@ -142,6 +136,10 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
         vitals: f.vitals,
       };
       const appt = editing ? await update.mutateAsync({ ...body, id: editing.id }) : await book.mutateAsync(body);
+      if (statusChanged) {
+        try { saveStatus(appt.id, { status: appointmentStatus, appointmentTime: appt.time }); }
+        catch { toast.error("Appointment details saved, but the browser could not save the status selection."); }
+      }
       seed({ ...EMPTY, date: today() });
       setHit(null);
       setSearchKey(null);
@@ -167,17 +165,18 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Scheduled appointments{clinic ? ` at ${clinic.name}` : ""}</h2>
         {canBook && (
-          <Button onClick={() => { setEditing(null); seed({ ...EMPTY, date: today() }); setHit(null); setSearchKey(null); setOpen(true); }}>
+          <Button onClick={() => { setEditing(null); setStatusChanged(false); seed({ ...EMPTY, date: today() }); setHit(null); setSearchKey(null); setOpen(true); }}>
             <Plus /> Book Appointment
           </Button>
         )}
       </div>
       <AppointmentsTable paged={paged} onEdit={(a) => {
-        setEditing(a); setBooked(null); setSearchKey(null);
+        setEditing(a); setStatusChanged(false); setBooked(null); setSearchKey(null);
         setHit(a.mid ? { mid: a.mid, chartId: "", doctorId: a.doctorId ?? "", name: a.patientName, phone: a.patient?.phone ?? "", gender: a.patient?.gender ?? null } : null);
+        setAppointmentStatus(appointmentUiStatus(a, now, profile, statuses[a.id]));
         seed({ ...EMPTY, id: a.mid ?? "", name: a.patientName, phone: a.patient?.phone ?? "", gender: a.patient?.gender ?? "", doctorId: a.doctorName ?? "", date: format(new Date(a.time), "yyyy-MM-dd"), time: format(new Date(a.time), "HH:mm"), reason: a.reason, vitals: a.vitals ?? {}, fee: a.payment ? String(a.payment.amount) : "", mode: a.payment?.mode ?? "UPI", paid: a.payment?.paid ? "Paid" : "Unpaid", reference: a.payment?.reference ?? "" });
         setOpen(true);
       }} />
@@ -273,19 +272,19 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
                       {VITAL_FIELDS.map((v) => <TextField key={v.key} label={`${v.label} (${v.unit})`} value={f.vitals[v.key] ?? ""} onChange={(e) => setF("vitals", { ...f.vitals, [v.key]: e.target.value })} placeholder={v.key === "bloodPressure" ? "120/80" : undefined} inputMode={v.key === "bloodPressure" ? undefined : "decimal"} />)}
                     </div>
                   </fieldset>
-                  <TextField
-                    label="Consultation fee (₹, optional)"
-                    type="number"
-                    min={0}
-                    inputMode="decimal"
-                    value={f.fee}
-                    onChange={(e) => setF("fee", e.target.value)}
-                    placeholder="Eg. 500"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Choice label="Payment mode" value={f.mode} options={["UPI", "Cash"] as const} onChange={(v) => setF("mode", v)} />
-                    <Choice label="Payment status" value={f.paid} options={["Paid", "Unpaid"] as const} onChange={(v) => setF("paid", v)} />
-                  </div>
+                  {editing && <fieldset className="rounded-lg border p-3">
+                    <legend className="px-1 text-sm font-semibold">Appointment Status</legend>
+                    <SelectField label="Appointment status" value={appointmentStatus} options={APPOINTMENT_STATUS_OPTIONS} onValueChange={(v) => { setAppointmentStatus(v as AppointmentUiStatus); setStatusChanged(true); }} />
+                    <p className="mt-2 text-xs text-muted-foreground">Status selections are saved in this browser for this account and clinic.</p>
+                  </fieldset>}
+                  <fieldset className="rounded-lg border p-3">
+                    <legend className="px-1 text-sm font-semibold">Consultation Fee</legend>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <TextField label="Fee (₹, optional)" type="number" min={0} inputMode="decimal" value={f.fee} onChange={(e) => setF("fee", e.target.value)} placeholder="Eg. 500" />
+                      <SelectField label="Payment mode" value={f.mode} options={["UPI", "Cash"]} onValueChange={(v) => setF("mode", v as "UPI" | "Cash")} />
+                      <SelectField label="Payment status" value={f.paid} options={["Paid", "Unpaid"]} onValueChange={(v) => setF("paid", v as "Paid" | "Unpaid")} />
+                    </div>
+                  </fieldset>
                   {f.mode === "UPI" && <TextField label="Payment reference / transaction ID" value={f.reference} onChange={(e) => setF("reference", e.target.value)} placeholder="Enter UPI transaction ID" />}
                 </form>
 
@@ -295,8 +294,8 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
                       <>
                         {qr && <img src={qr} alt="Clinic payment QR" className="size-44 rounded-md bg-white object-contain" />}
                         <p className="text-[13px] text-muted-foreground">
-                          Scan to pay {clinic?.name ?? "the clinic"}
-                          {profile?.upiId && <span className="block font-medium text-foreground">UPI ID: {profile.upiId}</span>}
+                          {qr ? `Payment QR Code · ${clinic?.name ?? "Clinic"}` : "Pay using UPI"}
+                          {!qr && profile?.upiId && <span className="block font-medium text-foreground">UPI ID: {profile.upiId}</span>}
                         </p>
                       </>
                     ) : (

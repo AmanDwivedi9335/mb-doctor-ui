@@ -91,7 +91,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const showConsult = !isDesk;
   const showClinic = isDesk || isPro;
   // A basic doctor invited into a clinic still gets their own queue there.
-  const memberQueue = false;
 
   const inSettings =
     pathname.startsWith("/settings/clinic") ||
@@ -250,16 +249,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 indent
               />
             )}
-            {memberQueue && (
-              <Row
-                icon={CalendarDays}
-                label="My queue"
-                to="/appointments"
-                active={pathname === "/appointments"}
-                onNavigate={onNavigate}
-                indent
-              />
-            )}
+            <Row
+              icon={CalendarDays}
+              label="Scheduled Appointments"
+              to="/appointments"
+              active={pathname === "/appointments"}
+              onNavigate={onNavigate}
+              indent
+            />
           </div>
         )}
 

@@ -12,7 +12,7 @@ const TIPS = [
 
 export function Help() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <div>
         <h2 className="text-xl font-semibold">Help &amp; Tutorial</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">Get started and find your way around MediBank for Doctors.</p>
@@ -22,7 +22,7 @@ export function Help() {
         {TIPS.map((t) => (
           <Card key={t.title}>
             <CardHeader className="flex-row items-center gap-2 space-y-0">
-              <div className="grid size-8 place-items-center rounded-full bg-accent text-accent-foreground">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
                 <t.icon className="size-4" />
               </div>
               <CardTitle className="text-[14px]">{t.title}</CardTitle>
