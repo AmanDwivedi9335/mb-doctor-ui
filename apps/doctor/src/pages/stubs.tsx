@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/DoctorAuthContext";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Construction } from "lucide-react";
+import { ArrowRight, Construction } from "lucide-react";
 import { useAppointments, useClinicProfile } from "@/hooks/use-api";
 import { DataTable, type Column } from "@/components/clinical/DataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -52,7 +52,7 @@ export function AppointmentsTable({ paged = false, onEdit }: { paged?: boolean; 
     { key: "payment", header: "Payment", render: (a) => a.payment ? `${a.payment.paid ? "Paid" : "Unpaid"} · ₹${a.payment.amount} · ${a.payment.mode}` : "—" },
     { key: "details", header: "Details", render: (a) => <div className="flex items-center gap-2 whitespace-nowrap">
       <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setSelected(a); }}>Details</Button>
-      {onEdit && <Button size="sm" onClick={(e) => { e.stopPropagation(); onEdit(a); }}>Update Details</Button>}
+      {onEdit && <Button size="icon" className="size-9 rounded-full" aria-label={`Update appointment details for ${a.patientName}`} title="Update Details" onClick={(e) => { e.stopPropagation(); onEdit(a); }}><ArrowRight className="size-4" /></Button>}
     </div> },
   ];
   return (

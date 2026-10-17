@@ -272,11 +272,9 @@ export function Appointments({ paged = false }: { paged?: boolean }) {
                       {VITAL_FIELDS.map((v) => <TextField key={v.key} label={`${v.label} (${v.unit})`} value={f.vitals[v.key] ?? ""} onChange={(e) => setF("vitals", { ...f.vitals, [v.key]: e.target.value })} placeholder={v.key === "bloodPressure" ? "120/80" : undefined} inputMode={v.key === "bloodPressure" ? undefined : "decimal"} />)}
                     </div>
                   </fieldset>
-                  {editing && <fieldset className="rounded-lg border p-3">
-                    <legend className="px-1 text-sm font-semibold">Appointment Status</legend>
+                  {editing && <div className="rounded-lg border p-3">
                     <SelectField label="Appointment status" value={appointmentStatus} options={APPOINTMENT_STATUS_OPTIONS} onValueChange={(v) => { setAppointmentStatus(v as AppointmentUiStatus); setStatusChanged(true); }} />
-                    <p className="mt-2 text-xs text-muted-foreground">Status selections are saved in this browser for this account and clinic.</p>
-                  </fieldset>}
+                  </div>}
                   <fieldset className="rounded-lg border p-3">
                     <legend className="px-1 text-sm font-semibold">Consultation Fee</legend>
                     <div className="grid gap-3 sm:grid-cols-3">
